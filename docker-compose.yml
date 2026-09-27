@@ -1,0 +1,7 @@
+services:
+  web:
+    build: .
+    container_name: akk-landing
+    ports:
+      - "127.0.0.1:9090:9090"
+    restart: unless-stopped

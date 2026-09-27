@@ -62,14 +62,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               />
             </div>
-            <div className="flex flex-col">
-              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors whitespace-nowrap">
-                {brandMark}
-              </span>
-              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest -mt-0.5">
-                AKK · EST. 1364
-              </span>
-            </div>
           </a>
 
           {/* ZONE 2: Clean Text Navigation Links */}

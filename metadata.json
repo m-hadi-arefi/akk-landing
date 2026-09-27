@@ -1,0 +1,7 @@
+{
+  "name": "Arian Khodro Middle East",
+  "description": "وب‌سایت رسمی آریان خودرو خاورمیانه (AKK) - از تأمین و تولید تا توزیع؛ زنجیره یکپارچه در صنعت قطعات خودرو | Official corporate portal of Arian Khodro Middle East.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

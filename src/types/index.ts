@@ -22,6 +22,7 @@ export interface ActivityCard {
   description: string;
   iconName: string;
   tags: string[];
+  imageSrc?: string;
 }
 
 export interface IndustrialFacility {
@@ -33,6 +34,27 @@ export interface IndustrialFacility {
   highlights: string[];
   specs: { label: string; value: string }[];
   iconName: string;
+  imageSrc: string;
+  imageCaption: string;
+}
+
+export interface FactoryGalleryItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  imageSrc: string;
+  description: string;
+  badge: string;
+}
+
+export interface ProductShowcaseItem {
+  id: string;
+  name: string;
+  carModel: string;
+  category: string;
+  imageSrc: string;
+  code: string;
 }
 
 export interface BrandInfo {

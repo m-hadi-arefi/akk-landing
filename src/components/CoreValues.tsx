@@ -31,18 +31,18 @@ export const CoreValues: React.FC<CoreValuesProps> = ({
   values,
 }) => {
   return (
-    <section id="values" className="py-20 lg:py-28 bg-slate-950 relative border-b border-slate-900">
+    <section id="values" className="py-20 lg:py-28 bg-slate-50 relative border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="max-w-3xl mb-14">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">
             <span>{kicker}</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
             {title}
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             {subtitle}
           </p>
         </div>
@@ -55,23 +55,23 @@ export const CoreValues: React.FC<CoreValuesProps> = ({
             return (
               <div
                 key={val.id}
-                className="p-6 rounded-xl bg-slate-900/60 border border-slate-800/80 hover:border-slate-700 transition-colors flex flex-col justify-between"
+                className="p-6 rounded-2xl bg-white border border-slate-200 hover:border-blue-400 hover:shadow-sm transition-all flex flex-col justify-between"
               >
                 <div>
-                  <div className="w-10 h-10 rounded-lg bg-slate-800/70 text-amber-400 flex items-center justify-center mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center mb-4 border border-blue-200">
                     <Icon className="w-5 h-5" />
                   </div>
 
-                  <h3 className="text-base font-bold text-white mb-2">
+                  <h3 className="text-base font-bold text-slate-900 mb-2">
                     {val.title}
                   </h3>
 
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-600 leading-relaxed">
                     {val.description}
                   </p>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-slate-800/60 text-[10px] font-mono text-slate-400 tabular-nums">
+                <div className="mt-5 pt-3 border-t border-slate-100 text-[10px] font-mono text-slate-400 tabular-nums font-semibold">
                   PRINCIPLE 0{idx + 1}
                 </div>
               </div>

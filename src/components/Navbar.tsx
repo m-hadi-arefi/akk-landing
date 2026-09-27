@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Globe, PhoneCall } from 'lucide-react';
+import { Menu, X, PhoneCall } from 'lucide-react';
 import { Language, NavItem } from '../types';
 
 interface NavbarProps {
   lang: Language;
   onLanguageChange: (lang: Language) => void;
   brandMark: string;
+  logoSrc: string;
   navItems: NavItem[];
   ctaText: string;
 }
@@ -14,6 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   lang,
   onLanguageChange,
   brandMark,
+  logoSrc,
   navItems,
   ctaText,
 }) => {
@@ -28,77 +30,91 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const isRtl = lang === 'fa';
-
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-slate-950/90 backdrop-blur-md border-b border-slate-800/80 shadow-lg shadow-black/40 py-3'
-          : 'bg-transparent py-5'
+          ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-sm shadow-slate-900/5 py-2.5'
+          : 'bg-white/80 backdrop-blur-sm border-b border-slate-100 py-3.5'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Strict 3-Zone Top Bar Contract */}
         <div className="flex items-center justify-between gap-4">
           
-          {/* ZONE 1: Brand Wordmark (Single Element) */}
+          {/* ZONE 1: Official Brand Logo & Name */}
           <a
             href="#"
-            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded"
+            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
             aria-label={brandMark}
           >
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 flex items-center justify-center shadow-md shadow-amber-900/30 font-bold text-slate-950 tracking-wider text-xs border border-amber-400/40 shrink-0">
-              AKK
+            <div className="h-10 sm:h-11 flex items-center justify-center p-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
+              <img
+                src={logoSrc}
+                alt="Arian Khodro AKK Logo"
+                className="h-full w-auto object-contain max-h-8"
+                onError={(e) => {
+                  // Fallback to text monogram if image loading is interrupted
+                  const target = e.currentTarget;
+                  target.style.display = 'none';
+                  if (target.parentElement) {
+                    target.parentElement.innerHTML = '<span class="font-extrabold text-blue-700 font-mono text-sm px-1.5">AKK</span>';
+                  }
+                }}
+              />
             </div>
-            <span className="text-base sm:text-lg font-bold tracking-tight text-white group-hover:text-amber-400 transition-colors whitespace-nowrap">
-              {brandMark}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 group-hover:text-blue-700 transition-colors whitespace-nowrap">
+                {brandMark}
+              </span>
+              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest -mt-0.5">
+                AKK · EST. 1364
+              </span>
+            </div>
           </a>
 
-          {/* ZONE 2: 4-6 Clean Text Navigation Links */}
+          {/* ZONE 2: Clean Text Navigation Links */}
           <nav
-            className="hidden lg:flex items-center gap-6 xl:gap-8"
+            className="hidden lg:flex items-center gap-5 xl:gap-7"
             aria-label="Main Navigation"
           >
             {navItems.map((item) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
-                className="text-xs xl:text-sm font-medium text-slate-300 hover:text-amber-400 transition-colors relative py-1 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-amber-400 after:w-0 after:transition-all after:duration-200"
+                className="text-xs xl:text-sm font-semibold text-slate-600 hover:text-blue-700 transition-colors relative py-1 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 after:w-0 after:transition-all after:duration-200"
               >
                 {item.label}
               </a>
             ))}
           </nav>
 
-          {/* ZONE 3: Language Switcher (FA | EN) & Primary Action */}
+          {/* ZONE 3: Language Switcher & Contact Button */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Minimalist Segmented Language Switcher */}
+            {/* Segmented Minimal Language Switcher */}
             <div
-              className="flex items-center bg-slate-900/90 border border-slate-800 rounded-lg p-0.5"
+              className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5"
               role="group"
               aria-label="Language Selector"
             >
               <button
                 type="button"
                 onClick={() => onLanguageChange('fa')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all duration-200 ${
                   lang === 'fa'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-blue-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
                 aria-pressed={lang === 'fa'}
               >
-                FA
+                فارسی
               </button>
               <button
                 type="button"
                 onClick={() => onLanguageChange('en')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all duration-200 ${
+                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all duration-200 ${
                   lang === 'en'
-                    ? 'bg-amber-500 text-slate-950 shadow-sm font-bold'
-                    : 'text-slate-400 hover:text-white'
+                    ? 'bg-blue-700 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
                 aria-pressed={lang === 'en'}
               >
@@ -109,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Primary Action Button */}
             <a
               href="#contact"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-slate-950 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 rounded-lg shadow-sm shadow-amber-500/20 transition-all duration-200 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 rounded-lg shadow-sm shadow-blue-700/20 transition-all duration-200 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               <PhoneCall className="w-3.5 h-3.5" />
               <span>{ctaText}</span>
@@ -119,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-300 hover:text-white bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+              className="lg:hidden p-2 text-slate-700 hover:text-slate-950 bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
             >
@@ -129,26 +145,26 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
-      {/* Mobile Navigation Drawer */}
+      {/* Mobile Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-slate-950/98 border-b border-slate-800 px-4 pt-4 pb-6 mt-3 space-y-2 backdrop-blur-xl animate-in fade-in duration-200">
-          <nav className="flex flex-col space-y-2">
+        <div className="lg:hidden bg-white border-b border-slate-200 px-4 pt-4 pb-6 mt-2.5 space-y-2 shadow-xl animate-in fade-in duration-200">
+          <nav className="flex flex-col space-y-1">
             {navItems.map((item) => (
               <a
                 key={item.id}
                 href={`#${item.id}`}
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-medium text-slate-200 hover:text-amber-400 hover:bg-slate-900 transition-colors"
+                className="px-3 py-2 rounded-md text-sm font-semibold text-slate-700 hover:text-blue-700 hover:bg-slate-50 transition-colors"
               >
                 {item.label}
               </a>
             ))}
           </nav>
-          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
             <a
               href="#contact"
               onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center px-4 py-2.5 text-xs font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 rounded-lg shadow transition-colors"
+              className="w-full text-center px-4 py-2.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow transition-colors"
             >
               {ctaText}
             </a>

@@ -3,10 +3,12 @@ import { Language } from './types';
 import { content } from './data/content';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
+import { FactoryGallery } from './components/FactoryGallery';
 import { AboutIntro } from './components/AboutIntro';
 import { ValueChain } from './components/ValueChain';
-import { ActivityDomains } from './components/ActivityDomains';
 import { IndustrialCapacities } from './components/IndustrialCapacities';
+import { ProductShowcase } from './components/ProductShowcase';
+import { ActivityDomains } from './components/ActivityDomains';
 import { BrandsSection } from './components/BrandsSection';
 import { CoreValues } from './components/CoreValues';
 import { FinalCTA } from './components/FinalCTA';
@@ -14,7 +16,6 @@ import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
 
 export default function App() {
-  // Initialize language from URL hash or default to 'fa'
   const [lang, setLang] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
       const hash = window.location.hash.toLowerCase();
@@ -28,13 +29,11 @@ export default function App() {
 
   const t = content[lang];
 
-  // Sync HTML attributes & document title whenever language changes
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
     document.title = t.meta.title;
 
-    // Update meta description
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
       metaDesc.setAttribute('content', t.meta.description);
@@ -53,20 +52,20 @@ export default function App() {
 
   const handleLanguageChange = (newLang: Language) => {
     setLang(newLang);
-    // Update hash without triggering reload
     const currentHash = window.location.hash.replace(/#?(lang=(fa|en)|fa|en)/g, '').replace(/^#/, '');
     const newHash = currentHash ? `#${newLang}&${currentHash}` : `#${newLang}`;
     window.history.replaceState(null, '', newHash);
   };
 
   return (
-    <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${lang === 'fa' ? 'rtl' : 'ltr'}`}>
+    <div className={`min-h-screen bg-white text-slate-800 flex flex-col font-sans ${lang === 'fa' ? 'rtl' : 'ltr'}`}>
       
-      {/* 3-Zone Sticky Navigation Bar */}
+      {/* 3-Zone Sticky Navigation with Official AKK Logo */}
       <Navbar
         lang={lang}
         onLanguageChange={handleLanguageChange}
         brandMark={t.brandMark}
+        logoSrc={t.logoSrc}
         navItems={t.nav}
         ctaText={lang === 'fa' ? 'ارتباط با ما' : 'Contact Us'}
       />
@@ -74,7 +73,7 @@ export default function App() {
       {/* Main Page Flow */}
       <main className="flex-1">
         
-        {/* 1. Hero Section */}
+        {/* 1. Hero Section with Real Factory Production Hall View */}
         <Hero
           lang={lang}
           tag={t.hero.tag}
@@ -83,10 +82,22 @@ export default function App() {
           description={t.hero.description}
           ctaPrimary={t.hero.ctaPrimary}
           ctaSecondary={t.hero.ctaSecondary}
+          ctaContact={t.hero.ctaContact}
           stats={t.hero.stats}
+          heroImage={t.hero.heroImage}
+          factoryBanner={t.hero.factoryBanner}
         />
 
-        {/* 2. About & History Timeline (1364 Anchor) */}
+        {/* 2. Interactive Factory Tour & Photos (Official Site Photography) */}
+        <FactoryGallery
+          lang={lang}
+          kicker={t.gallery.kicker}
+          title={t.gallery.title}
+          subtitle={t.gallery.subtitle}
+          items={t.gallery.items}
+        />
+
+        {/* 3. About & 1364 Timeline */}
         <AboutIntro
           lang={lang}
           kicker={t.about.kicker}
@@ -97,7 +108,7 @@ export default function App() {
           milestones={t.about.milestones}
         />
 
-        {/* 3. Interactive Value Chain (9 Stages) */}
+        {/* 4. Interactive 9-Step Value Chain */}
         <ValueChain
           lang={lang}
           kicker={t.valueChain.kicker}
@@ -106,16 +117,7 @@ export default function App() {
           steps={t.valueChain.steps}
         />
 
-        {/* 4. Activity Domains (8 Visual Cards) */}
-        <ActivityDomains
-          lang={lang}
-          kicker={t.activityDomains.kicker}
-          title={t.activityDomains.title}
-          subtitle={t.activityDomains.subtitle}
-          domains={t.activityDomains.domains}
-        />
-
-        {/* 5. Industrial Capacities & 4 Sites */}
+        {/* 5. Industrial Capacities & 4 Facilities with Real Factory Photos */}
         <IndustrialCapacities
           lang={lang}
           kicker={t.capacities.kicker}
@@ -124,7 +126,25 @@ export default function App() {
           facilities={t.capacities.facilities}
         />
 
-        {/* 6. Core Brands (Arian Khodro & MIBA) */}
+        {/* 6. Featured Products Showcase (Official Pars, 206, Saina Bumpers & Grilles) */}
+        <ProductShowcase
+          lang={lang}
+          kicker={t.products.kicker}
+          title={t.products.title}
+          subtitle={t.products.subtitle}
+          items={t.products.items}
+        />
+
+        {/* 7. Core Activity Domains (8 Visual Cards) */}
+        <ActivityDomains
+          lang={lang}
+          kicker={t.activityDomains.kicker}
+          title={t.activityDomains.title}
+          subtitle={t.activityDomains.subtitle}
+          domains={t.activityDomains.domains}
+        />
+
+        {/* 8. Brand Portfolio (Arian Khodro & MIBA) */}
         <BrandsSection
           lang={lang}
           kicker={t.brands.kicker}
@@ -133,7 +153,7 @@ export default function App() {
           brands={t.brands.brandsList}
         />
 
-        {/* 7. Core Principles & Values */}
+        {/* 9. Core Principles & Values */}
         <CoreValues
           lang={lang}
           kicker={t.values.kicker}
@@ -142,7 +162,7 @@ export default function App() {
           values={t.values.list}
         />
 
-        {/* 8. Final Full-Width Industrial CTA */}
+        {/* 10. Final Call to Action */}
         <FinalCTA
           lang={lang}
           title={t.finalCta.title}
@@ -151,7 +171,7 @@ export default function App() {
           contactQuick={t.finalCta.contactQuick}
         />
 
-        {/* 9. Contact & Inquiries */}
+        {/* 11. Contact & Corporate Form */}
         <ContactSection
           lang={lang}
           kicker={t.contact.kicker}
@@ -173,13 +193,14 @@ export default function App() {
 
       </main>
 
-      {/* Corporate Quiet Footer */}
+      {/* Corporate Footer */}
       <Footer
         lang={lang}
         companyName={t.footer.companyName}
         tagline={t.footer.tagline}
         copyright={t.footer.copyright}
         websiteNote={t.footer.websiteNote}
+        logoSrc={t.logoSrc}
         navItems={t.nav}
       />
 

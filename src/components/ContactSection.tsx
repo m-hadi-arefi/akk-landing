@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Building2, Factory, Phone, Mail, Clock, 
-  Send, CheckCircle, AlertCircle, ArrowUpRight 
+  Send, CheckCircle, AlertCircle 
 } from 'lucide-react';
 import { Language, ContactInfo } from '../types';
 
@@ -66,7 +66,6 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
     }
 
     setStatus('submitting');
-    // Simulate real submission
     setTimeout(() => {
       setStatus('success');
       setFormData({
@@ -76,22 +75,22 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
         subject: subjectOptions[0] || '',
         message: '',
       });
-    }, 800);
+    }, 700);
   };
 
   return (
-    <section id="contact" className="py-20 lg:py-28 bg-slate-900/60 relative border-b border-slate-800">
+    <section id="contact" className="py-20 lg:py-28 bg-white relative border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="max-w-3xl mb-14">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">
             <span>{kicker}</span>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight mb-4">
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
             {title}
           </h2>
-          <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
             {subtitle}
           </p>
         </div>
@@ -99,50 +98,50 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           
           {/* Left Column: Direct Contact Info & Locations (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-5 space-y-5">
             
             {/* Headquarters Card */}
-            <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 shadow-md">
-              <div className="flex items-center gap-3 text-amber-400 font-bold text-sm mb-3">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs">
+              <div className="flex items-center gap-3 text-blue-700 font-bold text-sm mb-3">
                 <Building2 className="w-4 h-4" />
                 <span>{info.centralOffice.title}</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-2">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed mb-2 font-medium">
                 {info.centralOffice.address}
               </p>
-              <div className="text-xs text-slate-400 font-medium">
+              <div className="text-xs text-slate-500 font-semibold">
                 {info.centralOffice.city}
               </div>
             </div>
 
             {/* Industrial Plant Card */}
-            <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 shadow-md">
-              <div className="flex items-center gap-3 text-amber-400 font-bold text-sm mb-3">
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs">
+              <div className="flex items-center gap-3 text-blue-700 font-bold text-sm mb-3">
                 <Factory className="w-4 h-4" />
                 <span>{info.factory.title}</span>
               </div>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-2">
+              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed mb-2 font-medium">
                 {info.factory.address}
               </p>
-              <div className="text-xs text-slate-400 font-medium">
+              <div className="text-xs text-slate-500 font-semibold">
                 {info.factory.city}
               </div>
             </div>
 
-            {/* Phone & Direct Communications */}
-            <div className="p-6 rounded-2xl bg-slate-950 border border-slate-800 shadow-md space-y-4">
+            {/* Direct Communications */}
+            <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 shadow-xs space-y-4">
               
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-2">
-                  <Phone className="w-3.5 h-3.5 text-amber-500" />
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-2">
+                  <Phone className="w-3.5 h-3.5 text-blue-700" />
                   <span>{lang === 'fa' ? 'تلفن‌های تماس مستقیم' : 'Direct Phone Numbers'}</span>
                 </div>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2.5">
                   {info.phoneNumbers.map((phone, pIdx) => (
                     <a
                       key={pIdx}
                       href={`tel:${phone.replace(/[^0-9+]/g, '')}`}
-                      className="text-xs sm:text-sm font-mono font-bold text-white hover:text-amber-400 transition-colors bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800"
+                      className="text-xs sm:text-sm font-mono font-bold text-slate-900 hover:text-blue-700 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-xs"
                     >
                       {phone}
                     </a>
@@ -151,24 +150,24 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               </div>
 
               <div>
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-1.5">
-                  <Mail className="w-3.5 h-3.5 text-amber-500" />
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-700" />
                   <span>{lang === 'fa' ? 'پست الکترونیکی رسمی' : 'Official Corporate Email'}</span>
                 </div>
                 <a
                   href={`mailto:${info.email}`}
-                  className="text-xs sm:text-sm font-mono text-amber-400 hover:underline block"
+                  className="text-xs sm:text-sm font-mono font-bold text-blue-700 hover:underline block"
                 >
                   {info.email}
                 </a>
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80">
-                <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mb-1">
-                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+              <div className="pt-2 border-t border-slate-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-700 mb-1">
+                  <Clock className="w-3.5 h-3.5 text-blue-700" />
                   <span>{lang === 'fa' ? 'ساعات کاری رسمی' : 'Operating Hours'}</span>
                 </div>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-600 leading-relaxed font-medium">
                   {info.workingHours}
                 </p>
               </div>
@@ -179,27 +178,27 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
 
           {/* Right Column: Inquiry & Partnership Form (7 cols) */}
           <div className="lg:col-span-7">
-            <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 shadow-xl">
+            <div className="p-6 sm:p-8 rounded-2xl bg-white border border-slate-200 shadow-md">
               
               <div className="mb-6">
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
+                <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-1">
                   {formTitle}
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-400">
+                <p className="text-xs sm:text-sm text-slate-500">
                   {formDesc}
                 </p>
               </div>
 
               {status === 'success' ? (
-                <div className="p-6 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-center space-y-3">
-                  <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto" />
-                  <p className="text-sm font-medium text-emerald-200">
+                <div className="p-6 rounded-xl bg-emerald-50 border border-emerald-300 text-center space-y-3">
+                  <CheckCircle className="w-10 h-10 text-emerald-600 mx-auto" />
+                  <p className="text-sm font-bold text-emerald-900">
                     {successMsg}
                   </p>
                   <button
                     type="button"
                     onClick={() => setStatus('idle')}
-                    className="mt-2 px-4 py-2 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-lg transition-colors"
+                    className="mt-2 px-4 py-2 text-xs font-bold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg transition-colors"
                   >
                     {lang === 'fa' ? 'ارسال پیام جدید' : 'Send Another Message'}
                   </button>
@@ -207,15 +206,15 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {status === 'error' && (
-                    <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/40 flex items-center gap-2 text-xs text-rose-300">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div className="p-3 rounded-lg bg-rose-50 border border-rose-300 flex items-center gap-2 text-xs text-rose-800 font-medium">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                       <span>{errorMessage}</span>
                     </div>
                   )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         {nameLabel} *
                       </label>
                       <input
@@ -223,12 +222,12 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         {phoneLabel} *
                       </label>
                       <input
@@ -236,35 +235,35 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                         required
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         {emailLabel}
                       </label>
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
                         {subjectLabel}
                       </label>
                       <select
                         value={formData.subject}
                         onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs sm:text-sm text-white focus:outline-none focus:border-amber-500 transition-colors"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 transition-colors"
                       >
                         {subjectOptions.map((opt, oIdx) => (
-                          <option key={oIdx} value={opt} className="bg-slate-900 text-white">
+                          <option key={oIdx} value={opt} className="bg-white text-slate-900">
                             {opt}
                           </option>
                         ))}
@@ -273,7 +272,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
                       {messageLabel} *
                     </label>
                     <textarea
@@ -281,14 +280,14 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       rows={4}
                       value={formData.message}
                       onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs sm:text-sm text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors resize-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-lg text-xs sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-blue-600 transition-colors resize-none"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={status === 'submitting'}
-                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 text-xs sm:text-sm font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 active:bg-amber-600 disabled:opacity-50 rounded-lg shadow-md transition-all duration-200"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 text-xs sm:text-sm font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 disabled:opacity-50 rounded-lg shadow-sm transition-all duration-200"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>{status === 'submitting' ? sendingText : submitBtn}</span>

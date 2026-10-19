@@ -57,9 +57,9 @@ export const content = {
       ],
     },
     gallery: {
-      kicker: 'مستندات تصویری کارخانه',
-      title: 'نگاهی به خطوط تولید و سالن‌های صنعتی آریان خودرو',
-      subtitle: 'تصاویر واقعی از خطوط تزریق سنگین، سالن‌های مکانیزه رنگ‌آمیزی کوره‌ای، واحد گرانول‌سازی و مونتاژ در شهرک صنعتی شماره ۲ کرمان',
+      kicker: 'مستندات تصویری کارخانه و بازرگانی',
+      title: 'نگاهی به خطوط تولید، واردات و سالن‌های صنعتی آریان خودرو',
+      subtitle: 'تصاویر مستند از خطوط تزریق سنگین، سالن‌های مکانیزه رنگ کوره‌ای، تأمین و واردات قطعات، واحد گرانول‌سازی و مونتاژ در شهرک صنعتی شماره ۲ کرمان',
       items: [
         {
           id: 'prod-hall',
@@ -78,6 +78,15 @@ export const content = {
           imageSrc: '/assets/official/factory-paint-line.jpg',
           description: 'دارای ۲ خط رنگ استاندارد صنعتی هر یک به طول ۲۰۰ متر برای رنگ‌آمیزی کوره‌ای و یکنواخت قطعات.',
           badge: '۲ خط رنگ ۲۰۰ متری',
+        },
+        {
+          id: 'import-logistics',
+          title: 'تأمین، بازرگانی و واردات قطعات خودرو',
+          subtitle: 'مرکز تدارکات بین‌المللی، انبارش و ترخیص تخصصی',
+          category: 'واردات و بازرگانی',
+          imageSrc: '/assets/official/banner-arian.jpg',
+          description: 'تأمین و واردات مستقیم قطعات خودرویی استاندارد، قالب‌های صنعتی و مواد اولیه پلیمری با اتکا به ۴ دهه سابقه بازرگانی بین‌المللی و مدیریت تخصصی اسناد و ترخیص.',
+          badge: 'واردات و بازرگانی بین‌المللی',
         },
         {
           id: 'granulation-unit',
@@ -261,7 +270,7 @@ export const content = {
             { label: 'مساحت سالن', value: '۴,۰۰۰ مترمربع' },
             { label: 'طول خطوط رنگ', value: '۲ خط مجزا، هرکدام ۲۰۰ متر' },
             { label: 'فرآیندها', value: 'رنگ‌آمیزی کوره‌ای، مونتاژ، پکینگ' },
-            { label: 'کنترل پایانی', value: 'بازرسی چشمی و تست چسبندگی ۱۰۰٪' },
+            { label: 'کنترل پایانی', value: 'بازرسی و تست چسبندگی ۱۰۰٪' },
           ],
           iconName: 'Palette',
           imageSrc: '/assets/official/factory-paint-line.jpg',
@@ -553,9 +562,9 @@ export const content = {
       ],
     },
     gallery: {
-      kicker: 'Visual Factory Archive',
-      title: 'Inside Arian Khodro Industrial Facilities',
-      subtitle: 'Authentic photography from our heavy injection halls, automated coating conveyors, polymer compounding lab, and sub-assembly stations in Kerman Industrial City No. 2',
+      kicker: 'Visual Factory & Operations Archive',
+      title: 'Inside Arian Khodro Manufacturing Lines, Imports & Facilities',
+      subtitle: 'Authentic photography from our heavy injection halls, automated coating conveyors, international imports & logistics hub, polymer compounding lab, and sub-assembly stations in Kerman Industrial City No. 2',
       items: [
         {
           id: 'prod-hall',
@@ -574,6 +583,15 @@ export const content = {
           imageSrc: '/assets/official/factory-paint-line.jpg',
           description: 'Equipped with two standard industrial paint lines each 200 meters long, applying durable OEM-calibrated finishes.',
           badge: 'Two 200m Paint Lines',
+        },
+        {
+          id: 'import-logistics',
+          title: 'Automotive Parts Sourcing, Trade & Imports',
+          subtitle: 'International procurement center, customs clearance & logistics hub',
+          category: 'Imports & Commerce',
+          imageSrc: '/assets/official/banner-arian.jpg',
+          description: 'Direct import of OEM-grade automotive components, industrial molds, and engineering polymers backed by four decades of international trade and supply chain management.',
+          badge: 'International Imports',
         },
         {
           id: 'granulation-unit',

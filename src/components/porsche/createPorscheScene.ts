@@ -33,6 +33,8 @@ interface GraphiteMatOptions {
   specBoost?: number;
   /** Strength of the crisp diagonal reflection streaks used on the glass, for non-glass surfaces. */
   reflection?: number;
+  /** Strength of the Fresnel-weighted sky/ground horizon reflection. */
+  envReflect?: number;
   glassMode?: number;
   opacity?: number;
 }
@@ -128,6 +130,7 @@ const graphiteFragmentShader = `
   uniform float uHatchStrength;
   uniform float uSpecBoost;
   uniform float uReflection;
+  uniform float uEnvReflect;
   uniform float uGlassMode;
   uniform float uOpacity;
   uniform vec2 uResolution;
@@ -236,7 +239,7 @@ const graphiteFragmentShader = `
       float glassStreak = reflStreak;
       float thinStreak = smoothstep(0.975, 0.99, sin(reflCoord * 1.7 + 1.3));
       float rimSheen = pow(1.0 - ndotv, 3.0) * 0.12;
-      lum = clamp(0.03 + spec * 0.9 + glassStreak * 0.62 + thinStreak * 0.38 + rimSheen, 0.0, 0.92);
+      lum = clamp(0.03 + spec * 0.9 + glassStreak * 0.40 + thinStreak * 0.25 + rimSheen, 0.0, 0.92);
       float glassShade = smoothstep(0.0, 0.90, lum);
       hatchMask = glassShade * mix(1.0, h2B, 0.45);
     }
@@ -252,6 +255,18 @@ const graphiteFragmentShader = `
     vec3 baseSketch = mix(uGraphiteColor, uPaperColor, finalShade);
     vec3 finalColor = mix(baseSketch, uAccentColor * (0.45 + 0.55 * finalShade), uAccentStrength);
     finalColor = mix(finalColor, uPaperColor, clamp(spec * uSpecBoost + reflStreak * uReflection, 0.0, 1.0));
+
+    if (uEnvReflect > 0.0) {
+      // Sky-over-ground environment reflection with a crisp horizon line, weighted by Fresnel
+      // (Schlick) so it strengthens toward grazing angles like real clear-coat and glass.
+      vec3 Vw = normalize(cameraPosition - vWorldPos);
+      vec3 R = reflect(-Vw, WN);
+      float fresnel = 0.04 + 0.96 * pow(1.0 - clamp(dot(WN, Vw), 0.0, 1.0), 5.0);
+      float sky = smoothstep(-0.015, 0.015, R.y) * mix(0.82, 1.0, smoothstep(0.0, 0.7, R.y));
+      vec3 groundColor = mix(uGraphiteColor, finalColor, 0.45);
+      vec3 envColor = mix(groundColor, uPaperColor, sky);
+      finalColor = mix(finalColor, envColor, clamp(uEnvReflect * (0.22 + 0.78 * fresnel), 0.0, 1.0));
+    }
 
     // Original page's .paper-texture-overlay (vignette over 26px drafting lines, opacity 0.38,
     // mix-blend-mode: multiply), applied to the car's pixels only so the page background stays untouched.
@@ -557,6 +572,7 @@ export function createPorscheScene(
         uHatchStrength: { value: options.hatchStrength ?? 0.5 },
         uSpecBoost: { value: options.specBoost ?? 0.0 },
         uReflection: { value: options.reflection ?? 0.0 },
+        uEnvReflect: { value: options.envReflect ?? 0.0 },
         uGlassMode: { value: options.glassMode ?? 0.0 },
         uOpacity: { value: options.opacity ?? 1.0 },
         ...sharedGraphiteUniforms,
@@ -579,6 +595,7 @@ export function createPorscheScene(
     hatchScale: 0.92,
     hatchStrength: 0.22,
     specBoost: 1.4,
+    envReflect: 0.55,
     accentHex: 0x1d4ed8,
     accentStrength: 0.86,
   });
@@ -590,6 +607,7 @@ export function createPorscheScene(
     shadeFloor: 0.04,
     hatchScale: 1.25,
     hatchStrength: 0.30,
+    envReflect: 0.6,
     glassMode: 1.0,
     opacity: 0.96,
   });
@@ -611,8 +629,8 @@ export function createPorscheScene(
     shadeFloor: 0.05,
     hatchScale: 1.30,
     hatchStrength: 0.15,
-    specBoost: 0.7,
-    reflection: 0.22,
+    specBoost: 0.35,
+    envReflect: 0.08,
   });
 
   const matBumperPaint = createGraphiteMat({
@@ -621,7 +639,7 @@ export function createPorscheScene(
     hatchScale: 0.92,
     hatchStrength: 0.15,
     specBoost: 1.4,
-    reflection: 0.38,
+    envReflect: 0.55,
     accentHex: 0x1d4ed8,
     accentStrength: 0.86,
   });
@@ -632,8 +650,17 @@ export function createPorscheScene(
     shadeFloor: 0.05,
     hatchScale: 1.30,
     hatchStrength: 0.15,
-    specBoost: 1.0,
-    reflection: 0.30,
+    specBoost: 0.6,
+    envReflect: 0.2,
+  });
+
+  const matWheelAlloy = createGraphiteMat({
+    toneBias: -0.02,
+    shadeFloor: 0.40,
+    hatchScale: 1.05,
+    hatchStrength: 0.30,
+    specBoost: 1.2,
+    envReflect: 0.45,
   });
 
   const matYellowCaliper = createGraphiteMat({
@@ -909,6 +936,104 @@ export function createPorscheScene(
     }
     hoodGroup.add(createPencilCurveLine(linePts, false, lineMidMat));
   });
+
+  // Engraved "Akk" lettering. Text reads from the front of the car: texture u runs along +x and
+  // texture v (letter up) points toward the windshield.
+  const hoodLettering = (() => {
+    const TEXT = 'Akk';
+    const SUBTEXT = 'آریان خودرو خاورمیانه';
+    const TEXT_FONT = '"Inter", "Segoe UI", system-ui, sans-serif';
+    const SUBTEXT_FONT = '"Vazirmatn", "Segoe UI", Tahoma, sans-serif';
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 620;
+    const ctx = canvas.getContext('2d')!;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 8;
+
+    // Light lip on the lower edge sells the recessed, engraved look.
+    const engrave = (text: string, x: number, y: number, lip: number) => {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.fillText(text, x, y + lip);
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillText(text, x, y);
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = canvas.width / 2;
+
+      ctx.direction = 'ltr';
+      ctx.font = `800 360px ${TEXT_FONT}`;
+      engrave(TEXT, cx, 235, 8);
+
+      ctx.direction = 'rtl';
+      let subSize = 120;
+      ctx.font = `700 ${subSize}px ${SUBTEXT_FONT}`;
+      const maxWidth = canvas.width * 0.92;
+      const measured = ctx.measureText(SUBTEXT).width;
+      if (measured > maxWidth) {
+        subSize = Math.floor(subSize * (maxWidth / measured));
+        ctx.font = `700 ${subSize}px ${SUBTEXT_FONT}`;
+      }
+      engrave(SUBTEXT, cx, 505, 5);
+      texture.needsUpdate = true;
+    };
+    draw();
+    if (document.fonts) {
+      Promise.all([
+        document.fonts.load(`800 360px ${TEXT_FONT}`, TEXT),
+        document.fonts.load(`700 120px ${SUBTEXT_FONT}`, SUBTEXT),
+      ]).then(draw, draw);
+    }
+
+    const TZ0 = 0.40;
+    const TZ1 = 0.70;
+    const U_HALF = 0.62;
+    const zSteps = 8;
+    const uSteps = 24;
+    const positions: number[] = [];
+    const uvs: number[] = [];
+    const indices: number[] = [];
+    for (let iz = 0; iz <= zSteps; iz++) {
+      const tz = TZ0 + (TZ1 - TZ0) * (iz / zSteps);
+      for (let iu = 0; iu <= uSteps; iu++) {
+        const u = -U_HALF + 2 * U_HALF * (iu / uSteps);
+        const pt = evalSmoothHoodSurface(tz, u);
+        positions.push(pt.x, pt.y + 0.0025, pt.z);
+        uvs.push(iu / uSteps, 1 - iz / zSteps);
+      }
+    }
+    const stride = uSteps + 1;
+    for (let iz = 0; iz < zSteps; iz++) {
+      for (let iu = 0; iu < uSteps; iu++) {
+        const a = iz * stride + iu;
+        const b = (iz + 1) * stride + iu;
+        indices.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    const mat = new THREE.MeshBasicMaterial({
+      map: texture,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 1;
+    return { mesh, texture };
+  })();
+  hoodGroup.add(hoodLettering.mesh);
 
   {
     const crestPt = evalSmoothHoodSurface(0.93, 0.0);
@@ -1192,41 +1317,22 @@ export function createPorscheScene(
   });
 
   // ==========================================================================
-  // 6E. REAR QUARTER PANELS, ROCKERS & TEARDROP DLO WINDOWS
+  // 6E. REAR QUARTER PANELS, C-PILLARS & ROCKERS
   // ==========================================================================
   [-1, 1].forEach((side) => {
     const rearQuarterGroup = new THREE.Group();
     carRoot.add(rearQuarterGroup);
 
-    const quarterGeo = buildLoftedPorschePatch(-1.94, -0.48, 0.0, 0.68, 28, 16, side);
+    // Solid C-pillar: the upper part runs forward to the door glass (z = -0.42) so no gap is left
+    // between the quarter panel and the door window.
+    const quarterGeo = buildLoftedPorschePatch(-1.94, -0.48, 0.0, 0.48, 28, 12, side);
     rearQuarterGroup.add(new THREE.Mesh(quarterGeo, matBrandPaint));
+    const pillarGeo = buildLoftedPorschePatch(-1.94, -0.42, 0.48, 0.68, 28, 6, side);
+    rearQuarterGroup.add(new THREE.Mesh(pillarGeo, matBrandPaint));
     rearQuarterGroup.add(buildPatchBoundaryLine(-1.94, -0.48, 0.0, 0.68, 18, side, lineDarkMat));
 
     const rockerGeo = buildLoftedPorschePatch(-0.52, 0.82, 0.0, 0.06, 16, 4, side);
     rearQuarterGroup.add(new THREE.Mesh(rockerGeo, matDarkCharcoal));
-
-    const qWindowGeo = buildLoftedPorschePatch(-1.14, -0.42, 0.48, 0.72, 14, 8, side, (pt, z, _v, tz) => {
-      const taper = Math.pow(tz, 0.65);
-      const midPt = evalPorsche911Point(z, 0.54, side);
-      pt.lerp(midPt, 1 - taper);
-      return pt;
-    });
-    rearQuarterGroup.add(new THREE.Mesh(qWindowGeo, matPorscheGlass));
-
-    const dloPts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 14; i++) {
-      const tz = i / 14;
-      const z = -1.14 + 0.72 * tz;
-      const taper = Math.pow(tz, 0.65);
-      dloPts.push(evalPorsche911Point(z, 0.54 + (0.72 - 0.54) * taper, side));
-    }
-    for (let i = 14; i >= 0; i--) {
-      const tz = i / 14;
-      const z = -1.14 + 0.72 * tz;
-      const taper = Math.pow(tz, 0.65);
-      dloPts.push(evalPorsche911Point(z, 0.54 - (0.54 - 0.48) * taper, side));
-    }
-    rearQuarterGroup.add(createPencilCurveLine(dloPts, true, lineDarkMat));
 
     registerExplodable(
       rearQuarterGroup,
@@ -1600,7 +1706,7 @@ export function createPorscheScene(
       wheelGroup.add(sidewall);
     });
 
-    const rimLip = createSketchMesh(new THREE.TorusGeometry(rimR, 0.014, 10, 36), matPorscheBody);
+    const rimLip = createSketchMesh(new THREE.TorusGeometry(rimR, 0.014, 10, 36), matWheelAlloy);
     rimLip.rotation.y = Math.PI / 2;
     rimLip.position.x = s * (wc.w * 0.43);
     wheelGroup.add(rimLip);
@@ -1658,7 +1764,7 @@ export function createPorscheScene(
         });
         spokeGeo.rotateZ(a);
         spokeGeo.rotateY(faceRotation);
-        const spoke = createSketchMesh(spokeGeo, matPorscheBody, 18);
+        const spoke = createSketchMesh(spokeGeo, matWheelAlloy, 18);
         spoke.position.set(spokeFaceX, 0, 0);
         wheelGroup.add(spoke);
 
@@ -2188,6 +2294,7 @@ export function createPorscheScene(
       });
       geometries.forEach((g) => g.dispose());
       materials.forEach((m) => m.dispose());
+      hoodLettering.texture.dispose();
       renderer.dispose();
       renderer.forceContextLoss();
     },

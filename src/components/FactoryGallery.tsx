@@ -1,6 +1,18 @@
-import React, { useState } from 'react';
-import { Factory, Eye, Maximize2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Factory,
+  Maximize2,
+  CheckCircle2,
+  ChevronUp,
+  ChevronDown,
+  X,
+  Sparkles,
+  Mouse,
+} from 'lucide-react';
 import { Language, FactoryGalleryItem } from '../types';
+
+// فاصله اسکرول برای رفتن از یک آیتم به آیتم بعدی، به نسبت ارتفاع صفحه
+const STEP_VIEWPORT_RATIO = 0.6;
 
 interface FactoryGalleryProps {
   lang: Language;
@@ -17,109 +29,420 @@ export const FactoryGallery: React.FC<FactoryGalleryProps> = ({
   subtitle,
   items,
 }) => {
-  const [activeItem, setActiveItem] = useState<FactoryGalleryItem>(items[0]);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const pinRef = useRef<HTMLDivElement | null>(null);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  // top منفی برای وقتی محتوای سکشن از ارتفاع صفحه بلندتر است تا پایین آن هم دیده شود
+  const [stickyTop, setStickyTop] = useState<number>(0);
+  const [stepPx, setStepPx] = useState<number>(0);
+  const pinRun = Math.max(0, items.length - 1) * stepPx;
+
+  const isRTL = lang === 'fa';
+  const activeItem = items[activeIndex] || items[0];
+
+  // اسکرول خودکار باکس ۲ کارتی به آیتم فعال
+  useEffect(() => {
+    const container = listContainerRef.current;
+    const targetCard = cardRefs.current[activeIndex];
+    if (container && targetCard) {
+      container.scrollTo({
+        top: targetCard.offsetTop - container.offsetTop,
+        behavior: 'smooth',
+      });
+    }
+  }, [activeIndex]);
+
+  // اندازه‌گیری ارتفاع بخش چسبان و فاصله اسکرول هر آیتم
+  useEffect(() => {
+    const pin = pinRef.current;
+    if (!pin) return;
+
+    const measure = () => {
+      const vh = window.innerHeight;
+      setStickyTop(Math.min(0, vh - pin.offsetHeight));
+      setStepPx(Math.round(vh * STEP_VIEWPORT_RATIO));
+    };
+    measure();
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(pin);
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  // اسکرول بومی مرورگر: سکشن با position: sticky ثابت می‌ماند و آیتم فعال از روی میزان اسکرول محاسبه می‌شود
+  useEffect(() => {
+    const section = sectionRef.current;
+    if (!section || pinRun <= 0) return;
+
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const progress = Math.min(1, Math.max(0, (stickyTop - section.getBoundingClientRect().top) / pinRun));
+      const idx = Math.min(items.length - 1, Math.floor(progress * items.length));
+      setActiveIndex((prev) => (prev === idx ? prev : idx));
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, [pinRun, stickyTop, items.length]);
+
+  // جلوگیری از اسکرول صفحه (و تغییر آیتم) زیر لایت‌باکس
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isLightboxOpen]);
+
+  // دکمه‌ها صفحه را به محل اسکرول همان آیتم می‌برند تا با موقعیت اسکرول هماهنگ بمانند
+  const goTo = (idx: number) => {
+    const section = sectionRef.current;
+    const target = Math.min(items.length - 1, Math.max(0, idx));
+    if (!section || pinRun <= 0) {
+      setActiveIndex(target);
+      return;
+    }
+    const sectionTop = window.scrollY + section.getBoundingClientRect().top;
+    window.scrollTo({
+      top: sectionTop - stickyTop + ((target + 0.5) / items.length) * pinRun,
+      behavior: 'smooth',
+    });
+  };
+
+  if (!items || items.length === 0) return null;
 
   return (
-    <section id="factory-tour" className="py-20 lg:py-28 bg-white relative border-b border-slate-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section
+      id="factory-tour"
+      ref={sectionRef}
+      dir={isRTL ? 'rtl' : 'ltr'}
+      className="relative bg-slate-950 text-white border-b border-slate-800/80 selection:bg-blue-500 selection:text-white"
+    >
+      <div
+        ref={pinRef}
+        style={{ top: stickyTop }}
+        className="sticky min-h-screen flex flex-col justify-center py-14 lg:py-20 overflow-hidden"
+      >
+      {/* نورپردازی پس‌زمینه آبی (دقیقاً مثل کد اول) */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-10 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
-        {/* Section Header */}
-        <div className="max-w-3xl mb-12">
-          <div className="inline-flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wider mb-2">
-            <Factory className="w-4 h-4" />
-            <span>{kicker}</span>
+        {/* هدر بخش */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 lg:mb-10 gap-4">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-400 uppercase tracking-wider mb-3">
+              <Factory className="w-3.5 h-3.5" />
+              <span>{kicker}</span>
+            </div>
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-tight mb-3">
+              {title}
+            </h2>
+            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              {subtitle}
+            </p>
           </div>
-          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight mb-4">
-            {title}
-          </h2>
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
-            {subtitle}
-          </p>
+
+          {/* کنترلر بالا و نشانگر اسکرول گام‌به‌گام */}
+          <div className="flex items-center gap-3 self-start md:self-end bg-slate-900/90 px-3.5 py-2 rounded-2xl border border-slate-800 backdrop-blur-md">
+            <div className="flex items-center gap-1.5 text-xs text-slate-300 pe-2.5 border-e border-slate-800">
+              <Mouse className="w-3.5 h-3.5 text-blue-400 animate-bounce" />
+              <span>{isRTL ? 'اسکرول گام‌به‌گام' : 'Step Scroll'}</span>
+            </div>
+            <span className="text-xs font-mono font-bold text-blue-400 px-1">
+              {String(activeIndex + 1).padStart(2, '0')} / {String(items.length).padStart(2, '0')}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => goTo(activeIndex - 1)}
+                disabled={activeIndex === 0}
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-blue-600 hover:text-white border border-slate-700 disabled:opacity-35 transition-all"
+                aria-label="Previous unit"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => goTo(activeIndex + 1)}
+                disabled={activeIndex === items.length - 1}
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-blue-600 hover:text-white border border-slate-700 disabled:opacity-35 transition-all"
+                aria-label="Next unit"
+              >
+                <ChevronDown className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Featured Large View + Thumbnails Layout */}
+        {/* چیدمان اصلی: عکس بزرگ (7 ستون) + پنجره ۲ کارتی (5 ستون) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Main Selected Photo Spotlight (7 cols) */}
-          <div className="lg:col-span-7 bg-slate-50 rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-sm">
-            <div className="relative rounded-xl overflow-hidden aspect-[16/10] bg-slate-200 border border-slate-200 shadow-inner">
-              <img
-                src={activeItem.imageSrc}
-                alt={activeItem.title}
-                className="w-full h-full object-cover transition-all duration-300"
-              />
-              <div className="absolute top-3 right-3 bg-blue-800 text-white text-xs font-mono font-bold px-3 py-1 rounded-md shadow-md">
-                {activeItem.badge}
+          {/* ستون تصویر اصلی (7 ستون) */}
+          <div className="lg:col-span-7 rounded-3xl bg-slate-900/90 border border-slate-800 p-3 sm:p-4 shadow-2xl backdrop-blur-xl">
+            
+            {/* نوار وضعیت بالای تصویر */}
+            <div className="flex items-center justify-between px-2 pb-2.5 mb-2.5 border-b border-slate-800/80 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="font-mono text-[11px] uppercase tracking-wider text-slate-300">
+                  {isRTL ? 'مانیتورینگ زنده واحد عملیاتی' : 'LIVE UNIT INSPECTION'}
+                </span>
+              </div>
+              <div className="font-mono text-xs text-blue-400 font-bold">
+                UNIT {String(activeIndex + 1).padStart(2, '0')}
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-200">
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-700 mb-1">
-                <span>{activeItem.category}</span>
-                <span className="text-slate-300">·</span>
-                <span className="text-slate-500 font-normal">{activeItem.subtitle}</span>
+            {/* کانتینر عکس‌ها با افکت Cross-fade */}
+            <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-slate-950 border border-slate-800/60 group">
+              {items.map((item, idx) => {
+                const isCurrent = idx === activeIndex;
+                return (
+                  <img
+                    key={item.id}
+                    src={item.imageSrc}
+                    alt={item.title}
+                    className={`absolute inset-0 w-full h-full object-cover transition-all duration-500 ease-out ${
+                      isCurrent
+                        ? 'opacity-100 scale-100 z-10'
+                        : 'opacity-0 scale-105 z-0 pointer-events-none'
+                    }`}
+                  />
+                );
+              })}
+
+              {/* گرادینت تیره پایین عکس */}
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/25 to-transparent z-20 pointer-events-none" />
+
+              {/* بج و دسته‌بندی بالا */}
+              <div className="absolute top-4 start-4 z-30 flex items-center gap-2">
+                <span className="bg-blue-600/90 backdrop-blur-md text-white text-xs font-mono font-bold px-3.5 py-1.5 rounded-xl shadow-lg border border-blue-400/30">
+                  {activeItem.badge}
+                </span>
+                <span className="bg-slate-900/80 backdrop-blur-md text-slate-200 text-xs font-medium px-3 py-1.5 rounded-xl border border-white/10">
+                  {activeItem.category}
+                </span>
               </div>
-              <h3 className="text-lg sm:text-xl font-bold text-slate-900 mb-2">
-                {activeItem.title}
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                {activeItem.description}
-              </p>
+
+              {/* دکمه بزرگنمایی */}
+              <button
+                type="button"
+                onClick={() => setIsLightboxOpen(true)}
+                title={isRTL ? 'بزرگنمایی تصویر' : 'Fullscreen View'}
+                className="absolute top-4 end-4 z-30 p-2.5 rounded-xl bg-slate-900/75 hover:bg-blue-600 text-white backdrop-blur-md border border-white/15 transition-all duration-200"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </button>
+
+              {/* اطلاعات روی تصویر */}
+              <div className="absolute bottom-0 inset-x-0 p-5 sm:p-6 z-30">
+                <p className="text-xs font-semibold text-blue-400 mb-1">
+                  {activeItem.subtitle}
+                </p>
+                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2 tracking-tight">
+                  {activeItem.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed line-clamp-2">
+                  {activeItem.description}
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Thumbnails & Information Cards (5 cols) */}
-          <div className="lg:col-span-5 space-y-3">
-            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-1">
-              {lang === 'fa' ? 'انتخاب واحد عملیاتی جهت مشاهده' : 'Select Operational Unit to Inspect'}
-            </div>
-
-            {items.map((item) => {
-              const isSelected = item.id === activeItem.id;
-
-              return (
+            {/* نوار پیشرفت پایین عکس */}
+            <div className="mt-3.5 px-1 flex items-center gap-2">
+              {items.map((item, idx) => (
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setActiveItem(item)}
-                  className={`w-full text-start p-3 rounded-xl border transition-all duration-200 flex items-center gap-3.5 focus:outline-none ${
-                    isSelected
-                      ? 'bg-blue-50/70 border-blue-600 shadow-xs ring-1 ring-blue-600'
-                      : 'bg-white hover:bg-slate-50 border-slate-200'
-                  }`}
+                  onClick={() => goTo(idx)}
+                  className="flex-1 h-1.5 rounded-full overflow-hidden bg-slate-800 transition-all"
+                  aria-label={item.title}
                 >
-                  <div className="w-16 h-14 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-100">
-                    <img
-                      src={item.imageSrc}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-[11px] font-bold text-blue-700 truncate">
-                        {item.category}
-                      </span>
-                      <span className="text-[10px] font-mono text-slate-500 tabular-nums">
-                        {item.badge}
-                      </span>
-                    </div>
-                    <h4 className={`text-xs font-bold truncate ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
-                      {item.title}
-                    </h4>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      {item.subtitle}
-                    </p>
-                  </div>
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      idx === activeIndex
+                        ? 'w-full bg-gradient-to-r from-blue-500 to-cyan-400'
+                        : idx < activeIndex
+                        ? 'w-full bg-blue-900/70'
+                        : 'w-0'
+                    }`}
+                  />
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </div>
+
+          {/* ستون کارت‌ها: نمایش دقیقاً ۲ کارت و مخفی شدن بقیه (5 ستون) */}
+          <div className="lg:col-span-5 flex flex-col justify-between">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">
+              <span>
+                {isRTL
+                  ? 'انتخاب واحد عملیاتی جهت مشاهده'
+                  : 'Select Operational Unit to Inspect'}
+              </span>
+              <span className="text-[11px] font-mono text-blue-400">
+                {activeIndex + 1} / {items.length}
+              </span>
+            </div>
+
+            {/* باکس با ارتفاع ثابت 384px که دقیقاً ۲ کارت 184px با فاصله 16px را جا می‌دهد */}
+            <div className="relative">
+              <div
+                ref={listContainerRef}
+                className="h-[384px] overflow-hidden space-y-4 px-1 py-1"
+              >
+                {items.map((item, index) => {
+                  const isSelected = index === activeIndex;
+
+                  return (
+                    <button
+                      key={item.id}
+                      ref={(el) => {
+                        cardRefs.current[index] = el;
+                      }}
+                      type="button"
+                      onClick={() => goTo(index)}
+                      className={`w-full h-[184px] text-start p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between focus:outline-none ${
+                        isSelected
+                          ? 'bg-slate-900/95 border-blue-500 shadow-lg shadow-blue-950/50 ring-1 ring-blue-500/50'
+                          : 'bg-slate-900/45 hover:bg-slate-900/75 border-slate-800/90 opacity-65 hover:opacity-95'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3.5 w-full">
+                        <div className="w-20 h-20 rounded-xl overflow-hidden shrink-0 border border-slate-700 bg-slate-950 relative">
+                          <img
+                            src={item.imageSrc}
+                            alt={item.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <span className="absolute bottom-1 start-1 bg-blue-600/90 text-white text-[10px] font-mono font-bold px-1.5 py-0.5 rounded">
+                            {String(index + 1).padStart(2, '0')}
+                          </span>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <span className="text-[11px] font-bold text-blue-400 truncate flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 shrink-0" />
+                              {item.category}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                              {item.badge}
+                            </span>
+                          </div>
+
+                          <h4 className="text-sm sm:text-base font-bold text-white truncate mb-1">
+                            {item.title}
+                          </h4>
+
+                          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="w-full flex items-center justify-between pt-2.5 border-t border-slate-800/80 text-[11px]">
+                        <span className="text-slate-400 truncate max-w-[65%]">
+                          {item.subtitle}
+                        </span>
+                        <span
+                          className={`inline-flex items-center gap-1 font-semibold ${
+                            isSelected ? 'text-emerald-400' : 'text-slate-500'
+                          }`}
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          {isRTL
+                            ? isSelected
+                              ? 'واحد فعال'
+                              : 'مشاهده'
+                            : isSelected
+                            ? 'Active Unit'
+                            : 'Inspect'}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* فضای خالی انتهایی تا کارت آخر هم بتواند به بالای باکس ۲ کارتی بیاید */}
+                <div className="h-[184px] shrink-0 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* وضعیت اسکرول پایین لیست */}
+            <div className="mt-3.5 flex items-center justify-between text-xs text-slate-400 px-1">
+              <span>
+                {activeIndex < items.length - 1
+                  ? isRTL
+                    ? `با اسکرول به واحد بعدی بروید (${items.length - 1 - activeIndex} واحد باقی‌مانده)`
+                    : `Scroll for next unit (${items.length - 1 - activeIndex} remaining)`
+                  : isRTL
+                  ? 'پایان واحدها — با اسکرول بعدی به بخش بعد می‌روید ↓'
+                  : 'All units viewed — scroll again for next section ↓'}
+              </span>
+            </div>
           </div>
 
         </div>
-
       </div>
+      </div>
+
+      {/* فضای اسکرول که سکشن در طول آن ثابت می‌ماند */}
+      <div aria-hidden="true" style={{ height: pinRun }} />
+
+      {/* مودال تمام‌صفحه تصویر (Lightbox) */}
+      {isLightboxOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center p-4 sm:p-8"
+          onClick={() => setIsLightboxOpen(false)}
+        >
+          <div
+            className="relative max-w-5xl w-full bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsLightboxOpen(false)}
+              className="absolute top-4 end-4 z-10 p-2 rounded-full bg-slate-950/80 text-white hover:bg-red-600 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={activeItem.imageSrc}
+              alt={activeItem.title}
+              className="w-full max-h-[75vh] object-contain bg-black"
+            />
+            <div className="p-5 bg-slate-900">
+              <div className="text-xs font-bold text-blue-400 mb-1">
+                {activeItem.category} — {activeItem.badge}
+              </div>
+              <h4 className="text-xl font-bold text-white mb-1">
+                {activeItem.title}
+              </h4>
+              <p className="text-sm text-slate-300">{activeItem.description}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 };

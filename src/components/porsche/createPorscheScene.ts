@@ -1799,106 +1799,392 @@ export function createPorscheScene(
   // ==========================================================================
   // 10. 8-CYLINDER TWIN-TURBO ENGINE & PDK POWERTRAIN
   // ==========================================================================
+  // Real 90-degree V8 layout: the crank axis sits at the vertex of the V, the cross-plane crank
+  // carries four pins at 90-degree steps, and each pin is shared by one rod from each bank.
   const engineMasterGroup = new THREE.Group();
   engineMasterGroup.position.set(0, 0.38, -1.42);
   carRoot.add(engineMasterGroup);
 
   registerExplodable(engineMasterGroup, new THREE.Vector3(0, 1.38, -0.15), new THREE.Euler(0.06, 0, 0), 'engine_lift');
 
+  const CRANK_Y = -0.06;
+  const CYL_PITCH = 0.175;
+  const ROD_STAGGER = 0.021;
+  const CRANK_THROW = 0.048;
+  const ROD_LENGTH = 0.19;
+  const DECK_DIST = 0.32;
+  const HEAD_HEIGHT = 0.12;
+  const CRANK_PIN_ANGLES = [0, Math.PI / 2, Math.PI * 1.5, Math.PI].map((a) => a + 0.35);
+
+  const pinZ = (c: number) => (c - 1.5) * CYL_PITCH;
+  const cylZ = (c: number, s: number) => pinZ(c) + s * ROD_STAGGER;
+  const bankAngle = (s: number) => -s * (Math.PI / 4);
+  // Unit vector up the bore and the unit vector toward the valley, in the engine's XY plane.
+  const bankDir = (s: number) => new THREE.Vector2(s * Math.SQRT1_2, Math.SQRT1_2);
+  const bankInner = (s: number) => new THREE.Vector2(-s * Math.SQRT1_2, Math.SQRT1_2);
+  const bankPoint = (s: number, along: number, inward: number, z: number) => {
+    const d = bankDir(s);
+    const n = bankInner(s);
+    return new THREE.Vector3(d.x * along + n.x * inward, CRANK_Y + d.y * along + n.y * inward, z);
+  };
+
+  const extrudeZ = (shape: THREE.Shape, depth: number, curveSegments = 12) => {
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments });
+    geo.translate(0, 0, -depth / 2);
+    return geo;
+  };
+
+  const roundedRectShape = (w: number, h: number, r: number) => {
+    const shape = new THREE.Shape();
+    const x = -w / 2;
+    const y = -h / 2;
+    shape.moveTo(x + r, y);
+    shape.lineTo(x + w - r, y);
+    shape.quadraticCurveTo(x + w, y, x + w, y + r);
+    shape.lineTo(x + w, y + h - r);
+    shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    shape.lineTo(x + r, y + h);
+    shape.quadraticCurveTo(x, y + h, x, y + h - r);
+    shape.lineTo(x, y + r);
+    shape.quadraticCurveTo(x, y, x + r, y);
+    return shape;
+  };
+
+  const gearGeometry = (rOuter: number, rRoot: number, teeth: number, depth: number, holeR = 0) => {
+    const shape = new THREE.Shape();
+    const step = (Math.PI * 2) / teeth;
+    for (let i = 0; i < teeth; i++) {
+      const a = i * step;
+      const profile: [number, number][] = [
+        [rRoot, a],
+        [rOuter, a + step * 0.18],
+        [rOuter, a + step * 0.5],
+        [rRoot, a + step * 0.68],
+      ];
+      profile.forEach(([r, ang], j) => {
+        const x = r * Math.cos(ang);
+        const y = r * Math.sin(ang);
+        if (i === 0 && j === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
+      });
+    }
+    shape.closePath();
+    if (holeR > 0) {
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, holeR, 0, Math.PI * 2, true);
+      shape.holes.push(hole);
+    }
+    return extrudeZ(shape, depth, 4);
+  };
+
+  const tubeMesh = (points: THREE.Vector3[], radius: number, mat: THREE.Material, tubular = 28, radial = 10) =>
+    createSketchMesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), tubular, radius, radial, false),
+      mat,
+      40,
+    );
+
+  const Y_AXIS = new THREE.Vector3(0, 1, 0);
+  const orientAlong = (obj: THREE.Object3D, dir: THREE.Vector3) => {
+    obj.quaternion.setFromUnitVectors(Y_AXIS, dir.clone().normalize());
+  };
+
+  const addBolt = (parent: THREE.Object3D, pos: THREE.Vector3, dir: THREE.Vector3, r = 0.007, len = 0.008) => {
+    const bolt = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 6), matDarkCharcoal);
+    bolt.position.copy(pos);
+    orientAlong(bolt, dir);
+    parent.add(bolt);
+  };
+
+  // --------------------------------------------------------------------------
+  // 10A. CYLINDER BLOCK, TIMING COVER & ACCESSORIES (static)
+  // --------------------------------------------------------------------------
   const engineBlockGroup = new THREE.Group();
   engineMasterGroup.add(engineBlockGroup);
 
-  {
-    const lowerCrankcase = createSketchMesh(new THREE.BoxGeometry(0.46, 0.26, 0.78), matMachinedAlloy);
-    lowerCrankcase.position.set(0, -0.06, 0);
-    engineBlockGroup.add(lowerCrankcase);
-  }
+  const vBlockShape = () => {
+    const shape = new THREE.Shape();
+    const pts = [
+      new THREE.Vector2(-0.25, -0.17),
+      new THREE.Vector2(0.25, -0.17),
+      new THREE.Vector2(0.25, -0.02),
+      ...[1, -1].flatMap((s) => {
+        const outer = bankPoint(s, DECK_DIST, -0.135, 0);
+        const inner = bankPoint(s, DECK_DIST, 0.135, 0);
+        const valley = new THREE.Vector2(s * 0.06, 0.10);
+        return s === 1
+          ? [new THREE.Vector2(outer.x, outer.y), new THREE.Vector2(inner.x, inner.y), valley]
+          : [valley, new THREE.Vector2(inner.x, inner.y), new THREE.Vector2(outer.x, outer.y)];
+      }),
+      new THREE.Vector2(-0.25, -0.02),
+    ];
+    shape.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i].x, pts[i].y);
+    shape.closePath();
+    return shape;
+  };
 
-  [-1, 1].forEach((bankSide) => {
-    const bankGroup = new THREE.Group();
-    bankGroup.rotation.z = -bankSide * (Math.PI / 4);
+  engineBlockGroup.add(createSketchMesh(extrudeZ(vBlockShape(), 0.74), matMachinedAlloy));
 
-    const bankDeck = createSketchMesh(new THREE.BoxGeometry(0.28, 0.30, 0.74), matMachinedAlloy);
-    bankDeck.position.set(0, 0.17, 0);
-    bankGroup.add(bankDeck);
-
-    for (let c = 0; c < 4; c++) {
-      const zCyl = -0.26 + c * 0.175 + bankSide * 0.018;
-      const boreSleeve = createSketchMesh(
-        new THREE.CylinderGeometry(0.074, 0.074, 0.32, 16, 1, true),
-        matDarkCharcoal,
-        15,
-      );
-      boreSleeve.position.set(0, 0.18, zCyl);
-      bankGroup.add(boreSleeve);
+  // Bulkhead ribs on the crankcase skirt, one per main bearing.
+  [-1, 1].forEach((s) => {
+    for (let m = 0; m < 5; m++) {
+      const rib = createSketchMesh(new THREE.BoxGeometry(0.014, 0.15, 0.022), matMachinedAlloy);
+      rib.position.set(s * 0.256, -0.095, (m - 2) * CYL_PITCH);
+      engineBlockGroup.add(rib);
     }
-    engineBlockGroup.add(bankGroup);
   });
 
-  [-1, 1].forEach((bankSide) => {
-    const angle = -bankSide * (Math.PI / 4);
-    const dirX = Math.sin(-angle);
-    const dirY = Math.cos(-angle);
+  // Bore openings on each deck face, visible once the heads lift off.
+  [-1, 1].forEach((s) => {
+    const deckNormal = new THREE.Vector3(bankDir(s).x, bankDir(s).y, 0);
+    for (let c = 0; c < 4; c++) {
+      const center = bankPoint(s, DECK_DIST + 0.002, 0, cylZ(c, s));
+      const bore = new THREE.Mesh(new THREE.CircleGeometry(0.072, 28), matDarkCharcoal);
+      bore.position.copy(center);
+      bore.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), deckNormal);
+      engineBlockGroup.add(bore);
+
+      const liner = new THREE.Mesh(new THREE.TorusGeometry(0.074, 0.004, 6, 28), lineMidMat);
+      liner.position.copy(center);
+      liner.quaternion.copy(bore.quaternion);
+      engineBlockGroup.add(liner);
+    }
+  });
+
+  {
+    const timingCover = createSketchMesh(extrudeZ(vBlockShape(), 0.028), matDarkCharcoal);
+    timingCover.position.z = -0.386;
+    engineBlockGroup.add(timingCover);
+
+    const alternator = new THREE.Group();
+    alternator.position.set(0.17, -0.03, -0.44);
+    const altBody = createSketchMesh(new THREE.CylinderGeometry(0.052, 0.052, 0.09, 20), matMachinedAlloy, 30);
+    altBody.rotation.x = Math.PI / 2;
+    alternator.add(altBody);
+    for (let f = 0; f < 6; f++) {
+      const fin = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.003, 4, 20), lineMidMat);
+      fin.position.z = -0.035 + f * 0.014;
+      alternator.add(fin);
+    }
+    const altPulley = createSketchMesh(new THREE.CylinderGeometry(0.024, 0.024, 0.02, 16), matDarkCharcoal, 30);
+    altPulley.rotation.x = Math.PI / 2;
+    altPulley.position.z = -0.055;
+    alternator.add(altPulley);
+    engineBlockGroup.add(alternator);
+  }
+
+  // --------------------------------------------------------------------------
+  // 10B. PISTONS & I-BEAM CONNECTING RODS (slider-crank kinematics)
+  // --------------------------------------------------------------------------
+  const rodShape = (() => {
+    const shape = new THREE.Shape();
+    const L = ROD_LENGTH;
+    shape.moveTo(0.024 * Math.cos(-Math.PI * 0.25), 0.024 * Math.sin(-Math.PI * 0.25));
+    shape.absarc(0, 0, 0.024, -Math.PI * 0.25, Math.PI * 1.25, false);
+    shape.lineTo(-0.026, -L + 0.042);
+    shape.absarc(0, -L, 0.048, Math.PI * 0.62, Math.PI * 2.38, false);
+    shape.lineTo(0.026, -L + 0.042);
+    shape.closePath();
+    const smallEye = new THREE.Path();
+    smallEye.absarc(0, 0, 0.0175, 0, Math.PI * 2, true);
+    const bigEye = new THREE.Path();
+    bigEye.absarc(0, -L, 0.031, 0, Math.PI * 2, true);
+    shape.holes.push(smallEye, bigEye);
+    return shape;
+  })();
+  const rodGeo = extrudeZ(rodShape, 0.02, 16);
+
+  function buildPiston() {
+    const piston = new THREE.Group();
+
+    const crown = createSketchMesh(new THREE.CylinderGeometry(0.068, 0.068, 0.024, 28), matPorscheBody, 30);
+    crown.position.y = 0.049;
+    piston.add(crown);
+
+    const dome = createSketchMesh(new THREE.CylinderGeometry(0.058, 0.068, 0.008, 28), matPorscheBody, 30);
+    dome.position.y = 0.065;
+    piston.add(dome);
+
+    // Valve reliefs: two intake and two exhaust pockets in the crown.
+    [[-0.028, -0.024], [-0.028, 0.024], [0.028, -0.024], [0.028, 0.024]].forEach(([px, pz]) => {
+      const pocket = new THREE.Mesh(new THREE.CircleGeometry(0.017, 16), matDarkCharcoal);
+      pocket.rotation.x = -Math.PI / 2;
+      pocket.position.set(px, 0.0695, pz);
+      piston.add(pocket);
+    });
+
+    const ringBelt = createSketchMesh(new THREE.CylinderGeometry(0.0675, 0.0675, 0.03, 28), matMachinedAlloy, 30);
+    ringBelt.position.y = 0.022;
+    piston.add(ringBelt);
+
+    // Two compression rings and a thicker oil-control ring.
+    [[0.032, 0.0028], [0.022, 0.0028], [0.011, 0.0042]].forEach(([ry, tube]) => {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.068, tube, 6, 28), matDarkCharcoal);
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = ry;
+      piston.add(ring);
+    });
+
+    // Short skirts only on the thrust faces, perpendicular to the wrist pin.
+    [Math.PI / 2, Math.PI * 1.5].forEach((thetaCenter) => {
+      const skirt = createSketchMesh(
+        new THREE.CylinderGeometry(0.067, 0.067, 0.058, 14, 1, true, thetaCenter - 0.8, 1.6),
+        matPorscheBody,
+        30,
+      );
+      skirt.position.y = -0.021;
+      piston.add(skirt);
+    });
+
+    [-1, 1].forEach((sz) => {
+      const boss = createSketchMesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16), matMachinedAlloy, 30);
+      boss.rotation.x = Math.PI / 2;
+      boss.position.z = sz * 0.042;
+      piston.add(boss);
+    });
+
+    const wristPin = createSketchMesh(new THREE.CylinderGeometry(0.017, 0.017, 0.11, 16), matDarkCharcoal, 30);
+    wristPin.rotation.x = Math.PI / 2;
+    piston.add(wristPin);
+
+    return piston;
+  }
+
+  function buildRod() {
+    const rod = new THREE.Group();
+    rod.add(createSketchMesh(rodGeo, matMachinedAlloy, 25));
+
+    // I-beam channel on both faces of the shank.
+    [-1, 1].forEach((sz) => {
+      const channel = new THREE.Mesh(new THREE.BoxGeometry(0.011, ROD_LENGTH - 0.1, 0.002), matDarkCharcoal);
+      channel.position.set(0, -ROD_LENGTH / 2 - 0.004, sz * 0.0105);
+      rod.add(channel);
+    });
+
+    // Split line between the rod and its bearing cap, plus the two cap bolts.
+    const capLine = createPencilCurveLine(
+      [new THREE.Vector3(-0.048, -ROD_LENGTH, 0.0105), new THREE.Vector3(0.048, -ROD_LENGTH, 0.0105)],
+      false,
+      lineDarkMat,
+    );
+    rod.add(capLine);
+    [-1, 1].forEach((sx) => {
+      const capBolt = createSketchMesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.07, 8), matDarkCharcoal, 30);
+      capBolt.position.set(sx * 0.038, -ROD_LENGTH - 0.004, 0);
+      rod.add(capBolt);
+    });
+    return rod;
+  }
+
+  [-1, 1].forEach((s) => {
+    const angle = bankAngle(s);
+    const d = bankDir(s);
+    const n = bankInner(s);
+    const cosA = Math.cos(-angle);
+    const sinA = Math.sin(-angle);
 
     for (let c = 0; c < 4; c++) {
-      const zCyl = -0.26 + c * 0.175 + bankSide * 0.018;
+      const theta = CRANK_PIN_ANGLES[c];
+      const pin = new THREE.Vector2(CRANK_THROW * Math.cos(theta), CRANK_THROW * Math.sin(theta));
+      const along = pin.dot(d);
+      const across = pin.dot(n);
+      const wristDist = along + Math.sqrt(ROD_LENGTH * ROD_LENGTH - across * across);
+
       const pistonAssy = new THREE.Group();
-      pistonAssy.position.set(dirX * 0.18, dirY * 0.18, zCyl);
+      pistonAssy.position.set(d.x * wristDist, CRANK_Y + d.y * wristDist, cylZ(c, s));
       pistonAssy.rotation.z = angle;
+      pistonAssy.add(buildPiston());
 
-      pistonAssy.add(createSketchMesh(new THREE.CylinderGeometry(0.068, 0.068, 0.085, 16), matPorscheBody, 15));
-
-      [-0.018, 0.02].forEach((ry) => {
-        const pRing = createSketchMesh(new THREE.TorusGeometry(0.070, 0.005, 8, 18), matDarkCharcoal);
-        pRing.rotation.x = Math.PI / 2;
-        pRing.position.y = ry;
-        pistonAssy.add(pRing);
-      });
-
-      const wristPin = createSketchMesh(new THREE.CylinderGeometry(0.018, 0.018, 0.12, 10), matDarkCharcoal);
-      wristPin.rotation.x = Math.PI / 2;
-      wristPin.position.y = -0.015;
-      pistonAssy.add(wristPin);
-
-      const conRod = createSketchMesh(new THREE.BoxGeometry(0.026, 0.19, 0.018), matMachinedAlloy);
-      conRod.position.y = -0.11;
-      pistonAssy.add(conRod);
-
-      const bigEnd = createSketchMesh(new THREE.TorusGeometry(0.034, 0.011, 8, 16), matDarkCharcoal);
-      bigEnd.position.y = -0.21;
-      pistonAssy.add(bigEnd);
+      const toPin = new THREE.Vector2(pin.x - d.x * wristDist, pin.y - d.y * wristDist);
+      const localX = toPin.x * cosA - toPin.y * sinA;
+      const localY = toPin.x * sinA + toPin.y * cosA;
+      const rod = buildRod();
+      rod.rotation.z = Math.atan2(localX, -localY);
+      pistonAssy.add(rod);
 
       engineMasterGroup.add(pistonAssy);
 
       const stagger = 0.72 + c * 0.11;
       registerExplodable(
         pistonAssy,
-        new THREE.Vector3(dirX * stagger, dirY * stagger, (c - 1.5) * 0.06),
+        new THREE.Vector3(d.x * stagger, d.y * stagger, (c - 1.5) * 0.06),
         new THREE.Euler(0, 0, 0),
         'engine_parts',
       );
     }
   });
 
+  // --------------------------------------------------------------------------
+  // 10C. CROSS-PLANE CRANKSHAFT, TORSIONAL DAMPER & FLYWHEEL
+  // --------------------------------------------------------------------------
   const crankshaftGroup = new THREE.Group();
-  crankshaftGroup.position.set(0, -0.11, 0);
+  crankshaftGroup.position.set(0, CRANK_Y, 0);
 
   {
-    const mainJournal = createSketchMesh(new THREE.CylinderGeometry(0.036, 0.036, 0.86, 14), matMachinedAlloy);
+    const mainJournal = createSketchMesh(new THREE.CylinderGeometry(0.033, 0.033, 0.80, 20), matMachinedAlloy, 30);
     mainJournal.rotation.x = Math.PI / 2;
     crankshaftGroup.add(mainJournal);
 
-    for (let w = 0; w < 8; w++) {
-      const web = createSketchMesh(new THREE.CylinderGeometry(0.095, 0.065, 0.026, 12), matDarkCharcoal);
-      web.rotation.x = Math.PI / 2;
-      web.position.set(Math.cos(w * 1.57) * 0.028, Math.sin(w * 1.57) * 0.028, -0.33 + w * 0.094);
-      crankshaftGroup.add(web);
+    const webShape = (phi: number) => {
+      const shape = new THREE.Shape();
+      const cw = phi + Math.PI;
+      const px = CRANK_THROW * Math.cos(phi);
+      const py = CRANK_THROW * Math.sin(phi);
+      shape.moveTo(0.088 * Math.cos(cw - 1.1), 0.088 * Math.sin(cw - 1.1));
+      shape.absarc(0, 0, 0.088, cw - 1.1, cw + 1.1, false);
+      shape.absarc(px, py, 0.036, phi - Math.PI / 2, phi + Math.PI / 2, false);
+      shape.closePath();
+      return shape;
+    };
+
+    for (let c = 0; c < 4; c++) {
+      const phi = CRANK_PIN_ANGLES[c];
+      const crankPin = createSketchMesh(new THREE.CylinderGeometry(0.030, 0.030, 0.10, 18), matMachinedAlloy, 30);
+      crankPin.rotation.x = Math.PI / 2;
+      crankPin.position.set(CRANK_THROW * Math.cos(phi), CRANK_THROW * Math.sin(phi), pinZ(c));
+      crankshaftGroup.add(crankPin);
+
+      [-1, 1].forEach((sz) => {
+        const web = createSketchMesh(extrudeZ(webShape(phi), 0.022, 16), matDarkCharcoal, 25);
+        web.position.z = pinZ(c) + sz * 0.05;
+        crankshaftGroup.add(web);
+      });
     }
 
-    const flywheel = createSketchMesh(new THREE.CylinderGeometry(0.19, 0.19, 0.036, 24), matDarkCharcoal);
-    flywheel.rotation.x = Math.PI / 2;
-    flywheel.position.z = 0.45;
+    const snout = createSketchMesh(new THREE.CylinderGeometry(0.024, 0.024, 0.05, 14), matMachinedAlloy, 30);
+    snout.rotation.x = Math.PI / 2;
+    snout.position.z = -0.42;
+    crankshaftGroup.add(snout);
+
+    const damper = createSketchMesh(new THREE.CylinderGeometry(0.08, 0.08, 0.035, 32), matMachinedAlloy, 30);
+    damper.rotation.x = Math.PI / 2;
+    damper.position.z = -0.448;
+    crankshaftGroup.add(damper);
+    [-0.008, 0.004].forEach((gz) => {
+      const groove = new THREE.Mesh(new THREE.TorusGeometry(0.0805, 0.0025, 4, 32), matDarkCharcoal);
+      groove.position.z = -0.448 + gz;
+      crankshaftGroup.add(groove);
+    });
+
+    const flywheel = createSketchMesh(gearGeometry(0.19, 0.181, 72, 0.028, 0.034), matDarkCharcoal, 25);
+    flywheel.position.z = 0.42;
     crankshaftGroup.add(flywheel);
+
+    const flywheelFace = createSketchMesh(new THREE.CylinderGeometry(0.15, 0.15, 0.03, 40), matMachinedAlloy, 30);
+    flywheelFace.rotation.x = Math.PI / 2;
+    flywheelFace.position.z = 0.42;
+    crankshaftGroup.add(flywheelFace);
+    for (let b = 0; b < 8; b++) {
+      const a = (b / 8) * Math.PI * 2;
+      addBolt(
+        crankshaftGroup,
+        new THREE.Vector3(Math.cos(a) * 0.05, Math.sin(a) * 0.05, 0.437),
+        new THREE.Vector3(0, 0, 1),
+        0.007,
+        0.008,
+      );
+    }
   }
 
   engineMasterGroup.add(crankshaftGroup);
@@ -1906,106 +2192,328 @@ export function createPorscheScene(
   // every frame, so in the original it never visibly spins.
   registerExplodable(crankshaftGroup, new THREE.Vector3(0, -0.58, 0), new THREE.Euler(0, 0, 0), 'engine_parts');
 
+  // --------------------------------------------------------------------------
+  // 10D. STEPPED OIL SUMP
+  // --------------------------------------------------------------------------
   const oilPanGroup = new THREE.Group();
-  oilPanGroup.position.set(0, -0.24, 0);
-  oilPanGroup.add(createSketchMesh(new THREE.BoxGeometry(0.44, 0.09, 0.74), matDarkCharcoal));
-  for (let f = -3; f <= 3; f++) {
-    const fin = createSketchMesh(new THREE.BoxGeometry(0.46, 0.016, 0.016), matMachinedAlloy);
-    fin.position.set(0, -0.045, f * 0.095);
-    oilPanGroup.add(fin);
+  oilPanGroup.position.set(0, -0.17, 0);
+
+  {
+    const flange = createSketchMesh(new THREE.BoxGeometry(0.50, 0.012, 0.76), matMachinedAlloy);
+    flange.position.y = -0.006;
+    oilPanGroup.add(flange);
+
+    // Side profile (x = engine z, y = height): shallow front section, deep sump at the timing end.
+    const sumpShape = new THREE.Shape();
+    sumpShape.moveTo(-0.36, -0.01);
+    sumpShape.lineTo(0.36, -0.01);
+    sumpShape.lineTo(0.345, -0.065);
+    sumpShape.lineTo(0.03, -0.07);
+    sumpShape.quadraticCurveTo(-0.01, -0.072, -0.03, -0.11);
+    sumpShape.lineTo(-0.045, -0.13);
+    sumpShape.lineTo(-0.32, -0.13);
+    sumpShape.quadraticCurveTo(-0.355, -0.128, -0.36, -0.09);
+    sumpShape.closePath();
+    const sumpGeo = new THREE.ExtrudeGeometry(sumpShape, { depth: 0.40, bevelEnabled: false, curveSegments: 8 });
+    sumpGeo.rotateY(-Math.PI / 2);
+    sumpGeo.translate(0.20, 0, 0);
+    oilPanGroup.add(createSketchMesh(sumpGeo, matDarkCharcoal));
+
+    for (let f = -2; f <= 2; f++) {
+      const fin = createSketchMesh(new THREE.BoxGeometry(0.012, 0.016, 0.24), matMachinedAlloy);
+      fin.position.set(f * 0.065, -0.136, -0.185);
+      oilPanGroup.add(fin);
+    }
+
+    const drainPlug = createSketchMesh(new THREE.CylinderGeometry(0.016, 0.016, 0.014, 6), matMachinedAlloy, 25);
+    drainPlug.position.set(0.12, -0.137, -0.08);
+    oilPanGroup.add(drainPlug);
   }
+
   engineMasterGroup.add(oilPanGroup);
   registerExplodable(oilPanGroup, new THREE.Vector3(0, -1.02, 0), new THREE.Euler(0, 0, 0), 'engine_parts');
 
-  [-1, 1].forEach((bankSide) => {
-    const angle = -bankSide * (Math.PI / 4);
-    const dirX = Math.sin(-angle);
-    const dirY = Math.cos(-angle);
+  // --------------------------------------------------------------------------
+  // 10E. DOHC CYLINDER HEADS & CAM COVERS WITH COIL-ON-PLUG
+  // --------------------------------------------------------------------------
+  const camLobeGeo = (() => {
+    const shape = new THREE.Shape();
+    const N = 36;
+    for (let i = 0; i <= N; i++) {
+      const t = (i / N) * Math.PI * 2;
+      const r = 0.019 + 0.013 * Math.pow(Math.max(0, Math.cos(t)), 3);
+      if (i === 0) shape.moveTo(r * Math.cos(t), r * Math.sin(t));
+      else shape.lineTo(r * Math.cos(t), r * Math.sin(t));
+    }
+    return extrudeZ(shape, 0.012, 1);
+  })();
+
+  const headShape = (() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.15, -0.06);
+    shape.lineTo(0.15, -0.06);
+    shape.lineTo(0.15, 0.025);
+    shape.lineTo(0.135, 0.06);
+    shape.lineTo(-0.135, 0.06);
+    shape.lineTo(-0.15, 0.025);
+    shape.closePath();
+    return shape;
+  })();
+
+  const camCoverShape = (() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.135, -0.035);
+    shape.lineTo(0.135, -0.035);
+    shape.lineTo(0.135, 0.0);
+    shape.quadraticCurveTo(0.135, 0.035, 0.10, 0.035);
+    shape.lineTo(-0.10, 0.035);
+    shape.quadraticCurveTo(-0.135, 0.035, -0.135, 0.0);
+    shape.closePath();
+    return shape;
+  })();
+
+  [-1, 1].forEach((s) => {
+    const angle = bankAngle(s);
+    const d = bankDir(s);
 
     const cylHeadGroup = new THREE.Group();
-    cylHeadGroup.position.set(dirX * 0.34, dirY * 0.34, 0);
+    cylHeadGroup.position.copy(bankPoint(s, DECK_DIST + HEAD_HEIGHT / 2, 0, 0));
     cylHeadGroup.rotation.z = angle;
 
-    cylHeadGroup.add(createSketchMesh(new THREE.BoxGeometry(0.30, 0.13, 0.76), matPorscheBody));
+    cylHeadGroup.add(createSketchMesh(extrudeZ(headShape, 0.76), matMachinedAlloy));
 
-    [-0.075, 0.075].forEach((cx) => {
-      const camShaft = createSketchMesh(new THREE.CylinderGeometry(0.022, 0.022, 0.78, 10), matMachinedAlloy);
+    // In the head's local frame the exhaust (outer) face is at x = +s, the intake (valley) face at x = -s.
+    for (let c = 0; c < 4; c++) {
+      const zc = cylZ(c, s);
+
+      const exhaustPort = new THREE.Mesh(new THREE.CircleGeometry(0.03, 20), matDarkCharcoal);
+      exhaustPort.scale.set(1, 0.72, 1);
+      exhaustPort.position.set(s * 0.1505, -0.01, zc);
+      exhaustPort.rotation.y = s * Math.PI / 2;
+      cylHeadGroup.add(exhaustPort);
+
+      [-0.026, 0.026].forEach((dz) => {
+        const intakePort = new THREE.Mesh(new THREE.CircleGeometry(0.019, 16), matDarkCharcoal);
+        intakePort.position.set(-s * 0.1505, -0.01, zc + dz);
+        intakePort.rotation.y = -s * Math.PI / 2;
+        cylHeadGroup.add(intakePort);
+      });
+
+      const plugWell = new THREE.Mesh(new THREE.CircleGeometry(0.016, 16), matDarkCharcoal);
+      plugWell.rotation.x = -Math.PI / 2;
+      plugWell.position.set(0, 0.0605, zc);
+      cylHeadGroup.add(plugWell);
+
+      [-1, 1].forEach((sx) => {
+        [-1, 1].forEach((sz) => {
+          addBolt(
+            cylHeadGroup,
+            new THREE.Vector3(sx * 0.118, 0.064, zc + sz * 0.0875),
+            Y_AXIS,
+            0.008,
+            0.008,
+          );
+        });
+      });
+    }
+
+    // Exhaust cam on the outer side, intake cam on the valley side; two lobes per cylinder.
+    [s, -s].forEach((side, camIdx) => {
+      const camX = side * 0.07;
+      const camShaft = createSketchMesh(new THREE.CylinderGeometry(0.014, 0.014, 0.78, 12), matMachinedAlloy, 30);
       camShaft.rotation.x = Math.PI / 2;
-      camShaft.position.set(cx, 0.045, 0);
+      camShaft.position.set(camX, 0.078, 0);
       cylHeadGroup.add(camShaft);
 
-      const camGear = createSketchMesh(new THREE.CylinderGeometry(0.055, 0.055, 0.024, 16), matDarkCharcoal);
-      camGear.rotation.x = Math.PI / 2;
-      camGear.position.set(cx, 0.045, -0.40);
-      cylHeadGroup.add(camGear);
+      for (let c = 0; c < 4; c++) {
+        [-0.026, 0.026].forEach((dz) => {
+          const lobe = createSketchMesh(camLobeGeo, matPorscheBody, 25);
+          lobe.position.set(camX, 0.078, cylZ(c, s) + dz);
+          lobe.rotation.z = c * (Math.PI / 2) + camIdx * 1.1 + (s > 0 ? 0.4 : 0);
+          cylHeadGroup.add(lobe);
+        });
+      }
+
+      for (let b = 0; b < 5; b++) {
+        const cap = createSketchMesh(new THREE.BoxGeometry(0.044, 0.018, 0.022), matMachinedAlloy);
+        cap.position.set(camX, 0.082, (b - 2) * CYL_PITCH + s * ROD_STAGGER);
+        cylHeadGroup.add(cap);
+      }
+
+      // VarioCam phaser behind the timing chain sprocket.
+      const sprocket = createSketchMesh(gearGeometry(0.052, 0.046, 26, 0.016), matDarkCharcoal, 25);
+      sprocket.position.set(camX, 0.078, -0.392);
+      cylHeadGroup.add(sprocket);
+      const phaser = createSketchMesh(new THREE.CylinderGeometry(0.032, 0.032, 0.028, 20), matMachinedAlloy, 30);
+      phaser.rotation.x = Math.PI / 2;
+      phaser.position.set(camX, 0.078, -0.41);
+      cylHeadGroup.add(phaser);
     });
 
     engineMasterGroup.add(cylHeadGroup);
     registerExplodable(
       cylHeadGroup,
-      new THREE.Vector3(dirX * 1.25, dirY * 1.25, 0),
-      new THREE.Euler(0, 0, -bankSide * 0.10),
+      new THREE.Vector3(d.x * 1.25, d.y * 1.25, 0),
+      new THREE.Euler(0, 0, -s * 0.10),
       'engine_parts',
     );
 
     const valveCoverGroup = new THREE.Group();
-    valveCoverGroup.position.set(dirX * 0.44, dirY * 0.44, 0);
+    valveCoverGroup.position.copy(bankPoint(s, DECK_DIST + HEAD_HEIGHT + 0.035, 0, 0));
     valveCoverGroup.rotation.z = angle;
 
-    valveCoverGroup.add(createSketchMesh(new THREE.BoxGeometry(0.28, 0.07, 0.74), matDarkCharcoal));
+    valveCoverGroup.add(createSketchMesh(extrudeZ(camCoverShape, 0.74), matDarkCharcoal));
+
+    [-0.085, -0.06, 0.06, 0.085].forEach((rx) => {
+      const rib = createSketchMesh(new THREE.BoxGeometry(0.006, 0.006, 0.64), matMachinedAlloy);
+      rib.position.set(rx, 0.037, 0);
+      valveCoverGroup.add(rib);
+    });
 
     for (let c = 0; c < 4; c++) {
-      const coil = createSketchMesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 10), matPorscheBody);
-      coil.position.set(0, 0.045, -0.25 + c * 0.17);
+      const zc = cylZ(c, s);
+      const coil = new THREE.Group();
+      coil.position.set(0, 0.035, zc);
+      const coilBody = createSketchMesh(new THREE.BoxGeometry(0.044, 0.03, 0.07), matMachinedAlloy);
+      coilBody.position.y = 0.015;
+      coil.add(coilBody);
+      const connector = createSketchMesh(new THREE.BoxGeometry(0.022, 0.018, 0.024), matPorscheBody);
+      connector.position.set(0, 0.016, -0.046);
+      coil.add(connector);
+      addBolt(coil, new THREE.Vector3(0, 0.032, 0.026), Y_AXIS, 0.006, 0.006);
       valveCoverGroup.add(coil);
+    }
+
+    for (let b = 0; b < 6; b++) {
+      [-1, 1].forEach((sx) => {
+        addBolt(valveCoverGroup, new THREE.Vector3(sx * 0.122, 0.01, -0.33 + b * 0.132), Y_AXIS, 0.006, 0.012);
+      });
+    }
+
+    if (s === -1) {
+      const fillerCap = createSketchMesh(new THREE.CylinderGeometry(0.026, 0.026, 0.022, 20), matPorscheBody, 30);
+      fillerCap.position.set(0.0, 0.045, 0.31);
+      valveCoverGroup.add(fillerCap);
     }
 
     engineMasterGroup.add(valveCoverGroup);
     registerExplodable(
       valveCoverGroup,
-      new THREE.Vector3(dirX * 1.68, dirY * 1.68, 0),
-      new THREE.Euler(0, 0, -bankSide * 0.16),
+      new THREE.Vector3(d.x * 1.68, d.y * 1.68, 0),
+      new THREE.Euler(0, 0, -s * 0.16),
       'engine_parts',
     );
   });
 
+  // --------------------------------------------------------------------------
+  // 10F. INTAKE PLENUM, RUNNERS, THROTTLE BODY & FUEL RAILS
+  // --------------------------------------------------------------------------
   const intakeGroup = new THREE.Group();
-  intakeGroup.position.set(0, 0.36, 0);
 
-  [-0.11, 0.11].forEach((px) => {
-    const plenum = createSketchMesh(new THREE.CylinderGeometry(0.072, 0.082, 0.76, 14), matDarkCharcoal);
+  {
+    const PLENUM_Y = 0.40;
+    const plenum = createSketchMesh(new THREE.CylinderGeometry(0.065, 0.065, 0.62, 28), matMachinedAlloy, 30);
     plenum.rotation.x = Math.PI / 2;
-    plenum.position.set(px, 0, 0);
+    plenum.position.y = PLENUM_Y;
     intakeGroup.add(plenum);
-  });
-
-  for (let r = 0; r < 4; r++) {
-    const zRunner = -0.25 + r * 0.17;
-    [-1, 1].forEach((s) => {
-      const runner = createSketchMesh(new THREE.CylinderGeometry(0.036, 0.032, 0.22, 10), matPorscheBody);
-      runner.position.set(s * 0.09, 0.09, zRunner);
-      runner.rotation.z = -s * 0.24;
-      intakeGroup.add(runner);
+    [-0.31, 0.31].forEach((ez) => {
+      const endCap = createSketchMesh(new THREE.SphereGeometry(0.065, 20, 12), matMachinedAlloy, 30);
+      endCap.scale.set(1, 1, 0.55);
+      endCap.position.set(0, PLENUM_Y, ez);
+      intakeGroup.add(endCap);
     });
+
+    [-1, 1].forEach((s) => {
+      const n = bankInner(s);
+      for (let c = 0; c < 4; c++) {
+        const zc = cylZ(c, s);
+        const port = bankPoint(s, DECK_DIST + 0.05, 0.148, zc);
+        const approach = port.clone().add(new THREE.Vector3(n.x * 0.05, n.y * 0.05, 0));
+        intakeGroup.add(tubeMesh(
+          [
+            new THREE.Vector3(s * 0.02, PLENUM_Y + 0.02, zc),
+            new THREE.Vector3(s * 0.10, PLENUM_Y + 0.05, zc),
+            approach,
+            port,
+          ],
+          0.02,
+          matPorscheBody,
+        ));
+      }
+
+      const railStart = bankPoint(s, 0.42, 0.175, -0.33);
+      const rail = createSketchMesh(new THREE.CylinderGeometry(0.009, 0.009, 0.66, 10), matMachinedAlloy, 30);
+      rail.rotation.x = Math.PI / 2;
+      rail.position.set(railStart.x, railStart.y, 0);
+      intakeGroup.add(rail);
+      for (let c = 0; c < 4; c++) {
+        const injector = createSketchMesh(new THREE.CylinderGeometry(0.007, 0.006, 0.04, 8), matDarkCharcoal, 30);
+        injector.position.copy(bankPoint(s, 0.40, 0.162, cylZ(c, s)));
+        orientAlong(injector, new THREE.Vector3(-n.x, -n.y, 0));
+        intakeGroup.add(injector);
+      }
+    });
+
+    const throttleBody = createSketchMesh(new THREE.CylinderGeometry(0.044, 0.044, 0.06, 24), matMachinedAlloy, 30);
+    throttleBody.rotation.x = Math.PI / 2;
+    throttleBody.position.set(0, PLENUM_Y, -0.41);
+    intakeGroup.add(throttleBody);
+    const throttleFlange = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.005, 6, 24), matDarkCharcoal);
+    throttleFlange.position.set(0, PLENUM_Y, -0.38);
+    intakeGroup.add(throttleFlange);
+    const throttleMotor = createSketchMesh(new THREE.BoxGeometry(0.04, 0.05, 0.05), matDarkCharcoal);
+    throttleMotor.position.set(0.055, PLENUM_Y, -0.41);
+    intakeGroup.add(throttleMotor);
+    intakeGroup.add(tubeMesh(
+      [
+        new THREE.Vector3(0, PLENUM_Y, -0.43),
+        new THREE.Vector3(0, PLENUM_Y - 0.02, -0.48),
+        new THREE.Vector3(0, PLENUM_Y - 0.07, -0.52),
+      ],
+      0.042,
+      matDarkCharcoal,
+      16,
+      16,
+    ));
   }
 
   engineMasterGroup.add(intakeGroup);
   registerExplodable(intakeGroup, new THREE.Vector3(0, 1.72, 0.05), new THREE.Euler(0.12, 0, 0), 'engine_parts');
 
+  // --------------------------------------------------------------------------
+  // 10G. TUBULAR EXHAUST MANIFOLDS & TWIN TURBOCHARGERS
+  // --------------------------------------------------------------------------
   [-1, 1].forEach((s) => {
+    const n = bankInner(s);
+    const outward = new THREE.Vector3(-n.x, -n.y, 0);
+    const turboPos = new THREE.Vector3(s * 0.48, 0.0, -0.56);
+
     const headerGroup = new THREE.Group();
-    headerGroup.position.set(s * 0.40, 0.12, 0);
+    const collectorStart = new THREE.Vector3(s * 0.475, -0.10, -0.53);
+    const collectorEnd = new THREE.Vector3(s * 0.48, -0.10, -0.60);
 
-    const collector = createSketchMesh(new THREE.CylinderGeometry(0.042, 0.055, 0.72, 12), matMachinedAlloy);
-    collector.rotation.x = Math.PI / 2;
-    headerGroup.add(collector);
+    for (let c = 0; c < 4; c++) {
+      const zc = cylZ(c, s);
+      const port = bankPoint(s, DECK_DIST + 0.05, -0.148, zc);
+      headerGroup.add(tubeMesh(
+        [
+          port,
+          port.clone().addScaledVector(outward, 0.06),
+          new THREE.Vector3(s * 0.46, -0.02, zc - 0.04),
+          new THREE.Vector3(s * 0.47, -0.08, zc * 0.4 - 0.29),
+          collectorStart,
+        ],
+        0.016,
+        matMachinedAlloy,
+        36,
+      ));
 
-    for (let p = 0; p < 4; p++) {
-      const pipe = createSketchMesh(new THREE.TorusGeometry(0.10, 0.020, 8, 14, Math.PI), matPorscheBody);
-      pipe.position.set(-s * 0.04, 0.04, -0.25 + p * 0.17);
-      pipe.rotation.y = Math.PI / 2;
-      headerGroup.add(pipe);
+      const portFlange = createSketchMesh(new THREE.BoxGeometry(0.012, 0.05, 0.066), matMachinedAlloy);
+      portFlange.position.copy(port.clone().addScaledVector(outward, 0.006));
+      portFlange.rotation.z = bankAngle(s);
+      headerGroup.add(portFlange);
     }
+    headerGroup.add(tubeMesh([collectorStart, collectorStart.clone().lerp(collectorEnd, 0.5), collectorEnd], 0.032, matMachinedAlloy, 8, 14));
 
     engineMasterGroup.add(headerGroup);
     registerExplodable(
@@ -2015,16 +2523,90 @@ export function createPorscheScene(
       'engine_parts',
     );
 
+    // Shaft along z: turbine (cast iron, rear) at -z, compressor (aluminium) at +z.
     const turboGroup = new THREE.Group();
-    turboGroup.position.set(s * 0.48, 0.06, -0.44);
+    turboGroup.position.copy(turboPos);
 
-    const coldSnail = createSketchMesh(new THREE.TorusGeometry(0.10, 0.044, 12, 20), matPorscheBody);
-    coldSnail.position.z = 0.045;
-    turboGroup.add(coldSnail);
+    const turbineHousing = createSketchMesh(new THREE.TorusGeometry(0.058, 0.036, 14, 24), matDarkCharcoal, 30);
+    turbineHousing.position.z = -0.05;
+    turboGroup.add(turbineHousing);
+    const turbineOutlet = createSketchMesh(new THREE.CylinderGeometry(0.038, 0.04, 0.07, 20, 1, true), matDarkCharcoal, 30);
+    turbineOutlet.rotation.x = Math.PI / 2;
+    turbineOutlet.position.z = -0.11;
+    turboGroup.add(turbineOutlet);
 
-    const hotSnail = createSketchMesh(new THREE.TorusGeometry(0.095, 0.040, 12, 20), matDarkCharcoal);
-    hotSnail.position.z = -0.045;
-    turboGroup.add(hotSnail);
+    const chra = createSketchMesh(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 20), matMachinedAlloy, 30);
+    chra.rotation.x = Math.PI / 2;
+    turboGroup.add(chra);
+
+    const compressorHousing = createSketchMesh(new THREE.TorusGeometry(0.064, 0.038, 14, 24), matMachinedAlloy, 30);
+    compressorHousing.position.z = 0.055;
+    turboGroup.add(compressorHousing);
+    const compressorInlet = createSketchMesh(new THREE.CylinderGeometry(0.046, 0.042, 0.07, 24, 1, true), matMachinedAlloy, 30);
+    compressorInlet.rotation.x = Math.PI / 2;
+    compressorInlet.position.z = 0.115;
+    turboGroup.add(compressorInlet);
+    const inletLip = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.005, 6, 24), matMachinedAlloy);
+    inletLip.position.z = 0.15;
+    turboGroup.add(inletLip);
+
+    const compressorWheel = new THREE.Mesh(new THREE.CircleGeometry(0.036, 24), matDarkCharcoal);
+    compressorWheel.position.z = 0.09;
+    turboGroup.add(compressorWheel);
+    for (let b = 0; b < 7; b++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.003, 0.03), matPorscheBody);
+      const a = (b / 7) * Math.PI * 2;
+      blade.position.set(Math.cos(a) * 0.018, Math.sin(a) * 0.018, 0.1);
+      blade.rotation.set(0, 0.5, a);
+      turboGroup.add(blade);
+    }
+
+    turboGroup.add(tubeMesh(
+      [
+        new THREE.Vector3(0, 0.07, 0.055),
+        new THREE.Vector3(-s * 0.03, 0.13, 0.07),
+        new THREE.Vector3(-s * 0.09, 0.18, 0.12),
+      ],
+      0.028,
+      matMachinedAlloy,
+      12,
+      14,
+    ));
+
+    turboGroup.add(tubeMesh(
+      [
+        new THREE.Vector3(0, 0.04, 0),
+        new THREE.Vector3(-s * 0.02, 0.09, 0.0),
+        new THREE.Vector3(-s * 0.06, 0.12, 0.03),
+      ],
+      0.005,
+      matDarkCharcoal,
+      10,
+      6,
+    ));
+
+    const wastegateCan = createSketchMesh(new THREE.CylinderGeometry(0.026, 0.026, 0.035, 18), matMachinedAlloy, 30);
+    wastegateCan.position.set(s * 0.09, 0.07, 0.04);
+    wastegateCan.rotation.z = Math.PI / 2;
+    turboGroup.add(wastegateCan);
+    const wastegateRod = createSketchMesh(new THREE.CylinderGeometry(0.004, 0.004, 0.11, 6), matDarkCharcoal, 30);
+    wastegateRod.position.set(s * 0.075, 0.045, -0.01);
+    orientAlong(wastegateRod, new THREE.Vector3(-s * 0.01, -0.05, -0.1));
+    turboGroup.add(wastegateRod);
+
+    const downpipeLocal = (p: THREE.Vector3) => p.clone().sub(turboPos);
+    turboGroup.add(tubeMesh(
+      [
+        downpipeLocal(new THREE.Vector3(s * 0.48, 0.0, -0.65)),
+        downpipeLocal(new THREE.Vector3(s * 0.48, -0.04, -0.71)),
+        downpipeLocal(new THREE.Vector3(s * 0.40, -0.10, -0.70)),
+        downpipeLocal(new THREE.Vector3(s * 0.33, -0.13, -0.66)),
+      ],
+      0.034,
+      matMachinedAlloy,
+      18,
+      14,
+    ));
 
     engineMasterGroup.add(turboGroup);
     registerExplodable(
@@ -2035,47 +2617,115 @@ export function createPorscheScene(
     );
   });
 
+  // --------------------------------------------------------------------------
+  // 10H. PDK DUAL-CLUTCH TRANSAXLE
+  // --------------------------------------------------------------------------
   const pdkGearboxGroup = new THREE.Group();
   pdkGearboxGroup.position.set(0, -0.05, 0.72);
 
   {
-    const bellHousing = createSketchMesh(new THREE.CylinderGeometry(0.22, 0.17, 0.28, 16), matMachinedAlloy);
+    const bellHousing = createSketchMesh(new THREE.CylinderGeometry(0.17, 0.23, 0.20, 32), matMachinedAlloy, 30);
     bellHousing.rotation.x = Math.PI / 2;
-    bellHousing.position.z = -0.18;
+    bellHousing.position.z = -0.24;
     pdkGearboxGroup.add(bellHousing);
+    const bellFlange = createSketchMesh(new THREE.TorusGeometry(0.232, 0.01, 8, 40), matMachinedAlloy, 30);
+    bellFlange.position.z = -0.338;
+    pdkGearboxGroup.add(bellFlange);
+    for (let b = 0; b < 12; b++) {
+      const a = (b / 12) * Math.PI * 2;
+      addBolt(pdkGearboxGroup, new THREE.Vector3(Math.cos(a) * 0.232, Math.sin(a) * 0.232, -0.33), new THREE.Vector3(0, 0, 1), 0.008, 0.016);
+    }
 
-    const gearCase = createSketchMesh(new THREE.BoxGeometry(0.36, 0.30, 0.56), matDarkCharcoal);
-    gearCase.position.z = 0.18;
+    const caseGeo = extrudeZ(roundedRectShape(0.34, 0.30, 0.06), 0.48);
+    const gearCase = createSketchMesh(caseGeo, matDarkCharcoal);
+    gearCase.position.z = 0.10;
     pdkGearboxGroup.add(gearCase);
+    [-0.06, 0.08, 0.22].forEach((rz) => {
+      const rib = createSketchMesh(extrudeZ(roundedRectShape(0.355, 0.315, 0.065), 0.012), matMachinedAlloy);
+      rib.position.z = rz;
+      pdkGearboxGroup.add(rib);
+    });
 
-    const axleFlange = createSketchMesh(new THREE.CylinderGeometry(0.075, 0.075, 0.56, 14), matPorscheBody);
-    axleFlange.rotation.z = Math.PI / 2;
-    axleFlange.position.z = 0.04;
-    pdkGearboxGroup.add(axleFlange);
+    const diffHousing = createSketchMesh(new THREE.CylinderGeometry(0.12, 0.12, 0.30, 32), matMachinedAlloy, 30);
+    diffHousing.rotation.z = Math.PI / 2;
+    diffHousing.position.set(0, -0.04, 0.02);
+    pdkGearboxGroup.add(diffHousing);
+
+    [-1, 1].forEach((sx) => {
+      const outputFlange = createSketchMesh(new THREE.CylinderGeometry(0.058, 0.058, 0.02, 24), matMachinedAlloy, 30);
+      outputFlange.rotation.z = Math.PI / 2;
+      outputFlange.position.set(sx * 0.16, -0.04, 0.02);
+      pdkGearboxGroup.add(outputFlange);
+      for (let b = 0; b < 6; b++) {
+        const a = (b / 6) * Math.PI * 2;
+        addBolt(
+          pdkGearboxGroup,
+          new THREE.Vector3(sx * 0.172, -0.04 + Math.sin(a) * 0.04, 0.02 + Math.cos(a) * 0.04),
+          new THREE.Vector3(1, 0, 0),
+          0.006,
+          0.008,
+        );
+      }
+      const cvJoint = createSketchMesh(new THREE.SphereGeometry(0.045, 18, 12), matDarkCharcoal, 30);
+      cvJoint.scale.set(0.8, 1, 1);
+      cvJoint.position.set(sx * 0.21, -0.04, 0.02);
+      pdkGearboxGroup.add(cvJoint);
+    });
+
+    const mechatronicsPan = createSketchMesh(new THREE.BoxGeometry(0.26, 0.04, 0.34), matMachinedAlloy);
+    mechatronicsPan.position.set(0, -0.17, 0.12);
+    pdkGearboxGroup.add(mechatronicsPan);
+    for (let f = -3; f <= 3; f++) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.008, 0.008), matDarkCharcoal);
+      fin.position.set(0, -0.192, 0.12 + f * 0.045);
+      pdkGearboxGroup.add(fin);
+    }
+
+    const oilCooler = createSketchMesh(new THREE.BoxGeometry(0.03, 0.12, 0.16), matMachinedAlloy);
+    oilCooler.position.set(0.186, 0.06, 0.20);
+    pdkGearboxGroup.add(oilCooler);
+    for (let f = 0; f < 6; f++) {
+      const fin = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.004, 0.15), matDarkCharcoal);
+      fin.position.set(0.186, 0.012 + f * 0.019, 0.20);
+      pdkGearboxGroup.add(fin);
+    }
   }
 
   engineMasterGroup.add(pdkGearboxGroup);
   registerExplodable(pdkGearboxGroup, new THREE.Vector3(0, -0.15, 0.95), new THREE.Euler(0.08, 0, 0), 'engine_parts');
 
+  // --------------------------------------------------------------------------
+  // 10I. REAR SILENCER & QUAD TAILPIPES
+  // --------------------------------------------------------------------------
   const quadExhaustGroup = new THREE.Group();
-  quadExhaustGroup.position.set(0, -0.17, -0.56);
+  quadExhaustGroup.position.set(0, -0.17, -0.60);
 
   {
-    const centerMuffler = createSketchMesh(new THREE.BoxGeometry(0.72, 0.18, 0.24), matMachinedAlloy);
-    centerMuffler.position.set(0, 0.04, 0.08);
-    quadExhaustGroup.add(centerMuffler);
+    const muffler = createSketchMesh(extrudeZ(roundedRectShape(0.72, 0.18, 0.07), 0.24), matMachinedAlloy);
+    muffler.position.z = -0.06;
+    quadExhaustGroup.add(muffler);
+    [-0.18, 0.06].forEach((sz) => {
+      const seam = createSketchMesh(extrudeZ(roundedRectShape(0.732, 0.192, 0.076), 0.012), matMachinedAlloy);
+      seam.position.z = sz;
+      quadExhaustGroup.add(seam);
+    });
   }
 
   [-1, 1].forEach((s) => {
-    [0.41, 0.52].forEach((tx) => {
-      const tip = createSketchMesh(new THREE.CylinderGeometry(0.042, 0.042, 0.24, 16, 1, true), matDarkCharcoal);
+    [0.20, 0.30].forEach((tx) => {
+      const tip = createSketchMesh(new THREE.CylinderGeometry(0.042, 0.042, 0.08, 24, 1, true), matMachinedAlloy, 30);
       tip.rotation.x = Math.PI / 2;
-      tip.position.set(s * tx, 0, -0.14);
+      tip.position.set(s * tx, 0, -0.22);
       quadExhaustGroup.add(tip);
 
-      const tipRim = createSketchMesh(new THREE.TorusGeometry(0.042, 0.006, 8, 16), matPorscheBody);
-      tipRim.position.set(s * tx, 0, -0.25);
+      const tipRim = createSketchMesh(new THREE.TorusGeometry(0.042, 0.006, 8, 24), matPorscheBody, 30);
+      tipRim.position.set(s * tx, 0, -0.26);
       quadExhaustGroup.add(tipRim);
+
+      const innerPipe = new THREE.Mesh(new THREE.CircleGeometry(0.034, 20), matDarkCharcoal);
+      innerPipe.position.set(s * tx, 0, -0.245);
+      innerPipe.rotation.y = Math.PI;
+      quadExhaustGroup.add(innerPipe);
     });
   });
 

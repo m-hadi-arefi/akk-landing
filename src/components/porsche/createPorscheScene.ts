@@ -27,6 +27,12 @@ interface GraphiteMatOptions {
   shadeFloor?: number;
   toneBias?: number;
   hatchScale?: number;
+  /** Weight of the pencil hatching against the smooth light shading, 0..1. */
+  hatchStrength?: number;
+  /** How strongly the specular highlight lifts the colour toward paper white. */
+  specBoost?: number;
+  /** Strength of the crisp diagonal reflection streaks used on the glass, for non-glass surfaces. */
+  reflection?: number;
   glassMode?: number;
   opacity?: number;
 }
@@ -119,6 +125,9 @@ const graphiteFragmentShader = `
   uniform float uShadeFloor;
   uniform float uToneBias;
   uniform float uHatchScale;
+  uniform float uHatchStrength;
+  uniform float uSpecBoost;
+  uniform float uReflection;
   uniform float uGlassMode;
   uniform float uOpacity;
   uniform vec2 uResolution;
@@ -220,11 +229,16 @@ const graphiteFragmentShader = `
       hatchMask = min(hatchMask, mix(1.0, h6B * 0.45, w));
     }
 
+    float reflCoord = vWorldPos.x * 4.2 + vWorldPos.z * 3.1 + vWorldPos.y * 5.2;
+    float reflStreak = smoothstep(0.88, 0.92, sin(reflCoord * 2.8));
+
     if (uGlassMode > 0.5 && uGlassMode < 1.5) {
-      float glassStreak = smoothstep(0.62, 0.96, sin((vWorldPos.x * 4.2 + vWorldPos.z * 3.1 + vWorldPos.y * 5.2) * 2.8));
-      float rimSheen = pow(1.0 - ndotv, 2.4) * 0.18;
-      lum = clamp(0.15 + spec * 0.55 + glassStreak * 0.22 + rimSheen, 0.12, 0.54);
-      hatchMask = mix(hatchMask, h2B, 0.55);
+      float glassStreak = reflStreak;
+      float thinStreak = smoothstep(0.975, 0.99, sin(reflCoord * 1.7 + 1.3));
+      float rimSheen = pow(1.0 - ndotv, 3.0) * 0.12;
+      lum = clamp(0.03 + spec * 0.9 + glassStreak * 0.62 + thinStreak * 0.38 + rimSheen, 0.0, 0.92);
+      float glassShade = smoothstep(0.0, 0.90, lum);
+      hatchMask = glassShade * mix(1.0, h2B, 0.45);
     }
     else if (uGlassMode >= 1.5) {
       float glassStreak = smoothstep(0.45, 0.85, sin((vWorldPos.x * 5.5 + vWorldPos.z * 3.8 + vWorldPos.y * 4.0) * 3.2));
@@ -233,10 +247,11 @@ const graphiteFragmentShader = `
 
     float paperGrain = (noise(gl_FragCoord.xy * 0.65) - 0.5) * 0.06;
     float smoothShade = smoothstep(0.0, 0.90, lum);
-    float finalShade = clamp(mix(smoothShade, hatchMask, 0.50) + paperGrain, uShadeFloor, 1.0);
+    float finalShade = clamp(mix(smoothShade, hatchMask, uHatchStrength) + paperGrain, uShadeFloor, 1.0);
 
     vec3 baseSketch = mix(uGraphiteColor, uPaperColor, finalShade);
     vec3 finalColor = mix(baseSketch, uAccentColor * (0.45 + 0.55 * finalShade), uAccentStrength);
+    finalColor = mix(finalColor, uPaperColor, clamp(spec * uSpecBoost + reflStreak * uReflection, 0.0, 1.0));
 
     // Original page's .paper-texture-overlay (vignette over 26px drafting lines, opacity 0.38,
     // mix-blend-mode: multiply), applied to the car's pixels only so the page background stays untouched.
@@ -539,6 +554,9 @@ export function createPorscheScene(
         uShadeFloor: { value: options.shadeFloor ?? 0.52 },
         uToneBias: { value: options.toneBias ?? 0.0 },
         uHatchScale: { value: options.hatchScale ?? 1.0 },
+        uHatchStrength: { value: options.hatchStrength ?? 0.5 },
+        uSpecBoost: { value: options.specBoost ?? 0.0 },
+        uReflection: { value: options.reflection ?? 0.0 },
         uGlassMode: { value: options.glassMode ?? 0.0 },
         uOpacity: { value: options.opacity ?? 1.0 },
         ...sharedGraphiteUniforms,
@@ -556,22 +574,24 @@ export function createPorscheScene(
   // Exterior paint in the site's brand blue (Tailwind blue-700), laid over the graphite hatching
   // the same way the caliper/taillight accents are.
   const matBrandPaint = createGraphiteMat({
-    toneBias: -0.06,
-    shadeFloor: 0.58,
+    toneBias: 0.0,
+    shadeFloor: 0.30,
     hatchScale: 0.92,
+    hatchStrength: 0.22,
+    specBoost: 1.4,
     accentHex: 0x1d4ed8,
-    accentStrength: 0.82,
+    accentStrength: 0.86,
   });
 
   const matPorscheGlass = createGraphiteMat({
-    graphiteHex: 0x141518,
-    accentHex: 0x1e222a,
-    accentStrength: 0.34,
-    toneBias: 0.56,
-    shadeFloor: 0.14,
+    graphiteHex: 0x0c0d10,
+    accentHex: 0x151a24,
+    accentStrength: 0.30,
+    shadeFloor: 0.04,
     hatchScale: 1.25,
+    hatchStrength: 0.30,
     glassMode: 1.0,
-    opacity: 0.93,
+    opacity: 0.96,
   });
 
   const matHeadlightGlass = createGraphiteMat({
@@ -584,6 +604,37 @@ export function createPorscheScene(
 
   const matMachinedAlloy = createGraphiteMat({ toneBias: 0.06, shadeFloor: 0.45, hatchScale: 1.05 });
   const matDarkCharcoal = createGraphiteMat({ toneBias: 0.42, shadeFloor: 0.22, hatchScale: 1.30 });
+
+  const matTireRubber = createGraphiteMat({
+    graphiteHex: 0x0c0d10,
+    toneBias: 0.40,
+    shadeFloor: 0.05,
+    hatchScale: 1.30,
+    hatchStrength: 0.15,
+    specBoost: 0.7,
+    reflection: 0.22,
+  });
+
+  const matBumperPaint = createGraphiteMat({
+    toneBias: 0.0,
+    shadeFloor: 0.30,
+    hatchScale: 0.92,
+    hatchStrength: 0.15,
+    specBoost: 1.4,
+    reflection: 0.38,
+    accentHex: 0x1d4ed8,
+    accentStrength: 0.86,
+  });
+
+  const matBumperTrim = createGraphiteMat({
+    graphiteHex: 0x0c0d10,
+    toneBias: 0.42,
+    shadeFloor: 0.05,
+    hatchScale: 1.30,
+    hatchStrength: 0.15,
+    specBoost: 1.0,
+    reflection: 0.30,
+  });
 
   const matYellowCaliper = createGraphiteMat({
     toneBias: -0.04,
@@ -1027,14 +1078,14 @@ export function createPorscheScene(
       }
       return pt;
     });
-    frontBumperGroup.add(new THREE.Mesh(bumperGeo, matBrandPaint));
+    frontBumperGroup.add(new THREE.Mesh(bumperGeo, matBumperPaint));
     frontBumperGroup.add(buildPatchBoundaryLine(2.01, 2.25, 0.0, 0.68, 14, side, lineDarkMat));
 
     const sideIntakeGroup = new THREE.Group();
     sideIntakeGroup.position.set(side * 0.49, 0.255, 2.165);
     sideIntakeGroup.rotation.y = -side * 0.26;
 
-    sideIntakeGroup.add(createSketchMesh(new THREE.BoxGeometry(0.39, 0.125, 0.085), matDarkCharcoal));
+    sideIntakeGroup.add(createSketchMesh(new THREE.BoxGeometry(0.39, 0.125, 0.085), matBumperTrim));
 
     [-0.024, 0.022].forEach((vy) => {
       const vane = createSketchMesh(new THREE.BoxGeometry(0.37, 0.010, 0.095), matMachinedAlloy);
@@ -1057,7 +1108,7 @@ export function createPorscheScene(
   });
 
   {
-    const centerIntake = createSketchMesh(new THREE.BoxGeometry(0.54, 0.092, 0.08), matDarkCharcoal);
+    const centerIntake = createSketchMesh(new THREE.BoxGeometry(0.54, 0.092, 0.08), matBumperTrim);
     centerIntake.position.set(0, 0.21, 2.20);
     frontBumperGroup.add(centerIntake);
   }
@@ -1070,7 +1121,7 @@ export function createPorscheScene(
   });
 
   {
-    const frontChinLip = createSketchMesh(new THREE.BoxGeometry(1.56, 0.024, 0.18), matDarkCharcoal);
+    const frontChinLip = createSketchMesh(new THREE.BoxGeometry(1.56, 0.024, 0.18), matBumperTrim);
     frontChinLip.position.set(0, 0.145, 2.14);
     frontBumperGroup.add(frontChinLip);
 
@@ -1535,14 +1586,14 @@ export function createPorscheScene(
     wheelGroup.position.set(xWheel, wc.y, wc.z);
 
     const rimR = wc.r * 0.79;
-    const tread = createSketchMesh(new THREE.CylinderGeometry(wc.r, wc.r, wc.w, 36, 1, true), matDarkCharcoal, 14);
+    const tread = createSketchMesh(new THREE.CylinderGeometry(wc.r, wc.r, wc.w, 36, 1, true), matTireRubber, 14);
     tread.rotation.z = Math.PI / 2;
     wheelGroup.add(tread);
 
     [-1, 1].forEach((sw) => {
       const sidewall = createSketchMesh(
         new THREE.TorusGeometry((wc.r + rimR) * 0.5, (wc.r - rimR) * 0.52, 12, 36),
-        matDarkCharcoal,
+        matTireRubber,
       );
       sidewall.rotation.y = Math.PI / 2;
       sidewall.position.x = sw * (wc.w * 0.42);

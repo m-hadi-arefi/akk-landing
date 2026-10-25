@@ -12,17 +12,9 @@ export interface ValueChainStep {
   shortDesc: string;
   fullDesc: string;
   keyOutputs: string[];
-  iconName: string;
-}
-
-export interface ActivityCard {
-  id: string;
-  title: string;
-  subtitle: string;
-  description: string;
-  iconName: string;
   tags: string[];
-  imageSrc?: string;
+  iconName: string;
+  siteId: string;
 }
 
 export interface IndustrialFacility {
@@ -30,8 +22,6 @@ export interface IndustrialFacility {
   title: string;
   category: string;
   scale?: string;
-  description: string;
-  highlights: string[];
   specs: { label: string; value: string }[];
   iconName: string;
   imageSrc: string;

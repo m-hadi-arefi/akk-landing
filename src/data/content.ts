@@ -1,5 +1,5 @@
 import { 
-  NavItem, ValueChainStep, ActivityCard, IndustrialFacility, 
+  NavItem, ValueChainStep, IndustrialFacility, 
   BrandInfo, CoreValue, ContactInfo, FactoryGalleryItem, ProductShowcaseItem 
 } from '../types';
 
@@ -17,9 +17,7 @@ export const content = {
       { id: 'about', label: 'درباره ما' },
       { id: 'factory-tour', label: 'تصاویر کارخانه' },
       { id: 'value-chain', label: 'زنجیره ارزش' },
-      { id: 'capacities', label: 'سایت‌های عملیاتی' },
       { id: 'products', label: 'محصولات تولیدی' },
-      { id: 'domains', label: 'حوزه‌های فعالیت' },
       { id: 'brands', label: 'برندها' },
       { id: 'contact', label: 'ارتباط با ما' },
     ] as NavItem[],
@@ -118,9 +116,9 @@ export const content = {
       ] as FactoryGalleryItem[],
     },
     valueChain: {
-      kicker: 'معماری فرآیندهای شرکت',
+      kicker: 'زنجیره ارزش، سایت‌ها و حوزه‌های فعالیت',
       title: 'زنجیره یکپارچه ارزش در آریان خودرو',
-      subtitle: 'هماهنگی دقیق میان ۹ حلقه ارزش؛ تضمین ثبات کیفیت و تحویل به‌موقع در سراسر کشور',
+      subtitle: '۹ حلقه ارزش در ۴ سایت عملیاتی؛ از تأمین و واردات تا تولید، رنگ، بسته‌بندی و توزیع سراسری با کیفیت یکنواخت و تحویل به‌موقع',
       steps: [
         {
           id: 'sourcing',
@@ -129,7 +127,9 @@ export const content = {
           shortDesc: 'شناسایی و انتخاب منابع معتبر مواد و قطعات استاندارد',
           fullDesc: 'ارزیابی مداوم تأمین‌کنندگان معتبر جهانی و داخلی بر مبنای استانداردهای صنعتی خودروسازی، با هدف ایجاد جریان پایدار مواد اولیه باکیفیت و ملزومات تولید.',
           keyOutputs: ['شناسایی تأمین‌کنندگان تراز اول', 'اعتبارسنجی کیفی زنجیره ورودی', 'قراردادهای پایداری تأمین'],
+          tags: ['تأمین پایدار', 'روابط بازرگانی', 'سورسینگ تخصصی'],
           iconName: 'Network',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'procurement',
@@ -138,7 +138,9 @@ export const content = {
           shortDesc: 'عملیات بازرگانی داخلی و بین‌المللی با اتکا به دانش تجاری',
           fullDesc: 'تدارکات هدفمند انواع قطعات یدکی استاندارد، ماشین‌آلات تخصصی و تجهیزات صنعتی از بازارهای معتبر بین‌المللی و تولیدکنندگان پیشرو داخلی.',
           keyOutputs: ['تخصیص بهینه منابع بازرگانی', 'مدیریت اسناد و ترخیص تخصصی', 'پوشش نیازمندی‌های بازار قطعات خودرو'],
+          tags: ['قطعات اصلی', 'استاندارد بین‌المللی', 'زنجیره فرامرزی'],
           iconName: 'Globe',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'raw-materials',
@@ -147,7 +149,9 @@ export const content = {
           shortDesc: 'تدارک و پالایش پلیمرها و کامپاندهای مهندسی',
           fullDesc: 'مدیریت و مهندسی مواد اولیه پلیمری مناسب برای تولید قطعات مقاوم خودرویی (از جمله پلی‌پروپیلن، پلی‌آمید و آلیاژهای پلیمری ضدضربه).',
           keyOutputs: ['فرمولاسیون ترکیبات مقاوم', 'انطباق فیزیکی و حرارتی مواد', 'ذخیره‌سازی بهینه مواد در شرایط کنترل‌شده'],
+          tags: ['گرانول‌سازی', 'پلیمر مهندسی', 'واحد ۱۵۰۰ متری'],
           iconName: 'Layers',
+          siteId: 'site-granulation',
         },
         {
           id: 'manufacturing',
@@ -156,7 +160,9 @@ export const content = {
           shortDesc: 'تزریق پلاستیک، فرم‌دهی و پردازش قطعات پلیمری',
           fullDesc: 'به‌کارگیری ماشین‌آلات مدرن قالب‌گیری تزریقی و خطوط تولید پیشرفته برای ساخت قطعات پلیمری و بدنه با دقت ابعادی بالا.',
           keyOutputs: ['تولید قطعات بدنه و تزئینی', 'دقت بالا در قالب‌گیری', 'کاهش ضایعات صنعتی'],
+          tags: ['تزریق پلاستیک', 'سپر، جلوپنجره، قالپاق', 'قالب‌سازی دقیق'],
           iconName: 'Cpu',
+          siteId: 'site-production',
         },
         {
           id: 'quality-control',
@@ -165,7 +171,9 @@ export const content = {
           shortDesc: 'پایش و آزمون‌های سخت‌گیرانه در هر ایستگاه عملیاتی',
           fullDesc: 'تست‌های مکانیکی، متالورژی و شیمیایی، سنجش دوام، مقاومت در برابر ضربه و UV و انطباق دقیق قطعات با استانداردهای رسمی.',
           keyOutputs: ['بررسی ابعادی و آزمون استحکام', 'تست چسبندگی رنگ و مقاومت محیطی', 'تأییدیه صفر نقص در خطوط'],
+          tags: ['آزمون ضربه', 'انطباق ابعادی', 'کنترل ایستگاهی'],
           iconName: 'ShieldCheck',
+          siteId: 'site-production',
         },
         {
           id: 'paint-assembly',
@@ -174,7 +182,9 @@ export const content = {
           shortDesc: 'رنگ‌آمیزی کوره‌ای مکانیزه و مونتاژ دقیق مجموعه‌ها',
           fullDesc: 'سالن رنگ مجهز به دو خط ۲۰۰ متری پوشش‌دهی با کدهای رنگ اصلی خودروسازان و ایستگاه‌های مونتاژ مجموعه‌های ترکیبی.',
           keyOutputs: ['۲ خط رنگ صنعتی ۲۰۰ متری', 'پوشش نهایی شفاف و بادوام', 'مجموعه‌سازی قطعات چندجزئی'],
+          tags: ['رنگ کوره‌ای', 'مونتاژ مکانیکی', 'تطبیق فام رنگ'],
           iconName: 'Palette',
+          siteId: 'site-paint-pack',
         },
         {
           id: 'packaging',
@@ -183,7 +193,9 @@ export const content = {
           shortDesc: 'بسته‌بندی ایمن، بارکدگذاری و حفاظت در ترابری',
           fullDesc: 'طراحی جعبه‌ها و بسته‌بندی‌های مقاوم برای محافظت از سطح قطعات در برابر ضربه، سایش و عوامل محیطی به همراه هولوگرام اصالت.',
           keyOutputs: ['حفاظت فیزیکی در جابجایی', 'ردیابی کالا با بارکدهای یکتا', 'بسته‌بندی اختصاصی برندهای آریان خودرو و میبا'],
+          tags: ['ایمنی حمل', 'هولوگرام اصالت', 'کد رهگیری فنی'],
           iconName: 'PackageCheck',
+          siteId: 'site-paint-pack',
         },
         {
           id: 'warehousing',
@@ -192,7 +204,9 @@ export const content = {
           shortDesc: 'انبارش مکانیزه در سایت ۴,۰۰۰ مترمربعی',
           fullDesc: 'سیستم منظم طبقه‌بندی و کدگذاری قطعات در انبار بزرگ مرکزی، کنترل شرایط نگهداری برای حفظ کامل کیفیت محصولات.',
           keyOutputs: ['کنترل موجودی هوشمند', 'سایت ۴۰۰۰ متری انبارش', 'سرعت بالای پردازش سفارش‌ها'],
+          tags: ['انبار ۴۰۰۰ متری', 'کدینگ مکانیزه', 'کنترل موجودی'],
           iconName: 'Warehouse',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'distribution',
@@ -201,27 +215,17 @@ export const content = {
           shortDesc: 'توزیع مویرگی و سراسری به شبکه عاملیت‌ها در ایران',
           fullDesc: 'لجستیک یکپارچه و تحویل ایمن قطعات به بازارهای استانی، فروشگاه‌های معتبر و شبکه مصرف‌کنندگان در سراسر کشور.',
           keyOutputs: ['پوشش کشوری شبکه پخش', 'پاسخگویی سریع به بازار یدکی', 'تضمین اصالت کالا تا مقصد'],
+          tags: ['توزیع مویرگی', 'پوشش سراسری', 'تحویل به‌موقع'],
           iconName: 'Truck',
+          siteId: 'site-commercial-logistics',
         },
       ] as ValueChainStep[],
-    },
-    capacities: {
-      kicker: 'زیرساخت‌های عملیاتی کارخانه',
-      title: 'توانمندی‌های صنعتی و سایت‌های چهارگانه',
-      subtitle: 'چهار سایت و واحد مجزا با مأموریت‌های مشخص برای اجرای بدون توقف فرآیندهای زنجیره ارزش',
-      facilities: [
+      sites: [
         {
           id: 'site-production',
           title: 'سایت تولید قطعات',
           category: 'تولید پلیمری و پلاستیکی',
           scale: '۱۰,۰۰۰ مترمربع',
-          description: 'سایت تولیدی مجموعه مستقر در شهرک صنعتی شماره ۲ کرمان با سالن‌های مجهز به پیشرفته‌ترین دستگاه‌های تزریق پلاستیک سنگین و نیمه‌سنگین، خطوط ساخت قطعات پلیمری بدنه خودروها را با بالاترین استانداردهای فنی پوشش می‌دهد.',
-          highlights: [
-            'مساحت سایت صنعتی بالغ بر ۱۰,۰۰۰ مترمربع',
-            'ماشین‌آلات قالب‌گیری تزریقی تناژ بالا',
-            'تولید تخصصی سپر، جلوپنجره، قالپاق و متعلقات بدنه',
-            'قابلیت ساخت از کوچک‌ترین تا بزرگ‌ترین قطعات پلاستیکی',
-          ],
           specs: [
             { label: 'مساحت کل سایت', value: '۱۰,۰۰۰ مترمربع' },
             { label: 'موقعیت', value: 'شهرک صنعتی شماره ۲ کرمان' },
@@ -237,13 +241,6 @@ export const content = {
           title: 'واحد گرانول‌سازی مواد اولیه',
           category: 'آماده‌سازی و کنترل کیفی مواد',
           scale: '۱,۵۰۰ مترمربع',
-          description: 'واحد تخصصی گرانول‌سازی در زمینی به مساحت ۱,۵۰۰ مترمربع با ماشین‌آلات پیشرفته وظیفه فرآوری و ارتقای کیفیت مواد اولیه پلیمری را دارد و موجب اطمینان خاطر در قطعات خروجی می‌گردد.',
-          highlights: [
-            'مساحت مستقل حدود ۱,۵۰۰ مترمربع',
-            'فرآوری علمی و بهینه‌سازی فرمولاسیون پلیمر',
-            'کنترل مداوم شاخص جریان مذاب و آزمون‌های سنجش کیفیت',
-            'افزایش مقاومت ضربه‌پذیری قطعات نهایی',
-          ],
           specs: [
             { label: 'مساحت واحد', value: '۱,۵۰۰ مترمربع' },
             { label: 'مأموریت', value: 'تأمین و کنترل کیفی مواد اولیه' },
@@ -259,13 +256,6 @@ export const content = {
           title: 'واحد رنگ‌آمیزی، مونتاژ و بسته‌بندی',
           category: 'پوشش کوره‌ای و مجموعه‌سازی',
           scale: '۴,۰۰۰ مترمربع (۲ خط ۲۰۰ متری)',
-          description: 'احداث‌شده در زمینی به مساحت ۴,۰۰۰ مترمربع با ۲ خط رنگ استاندارد هر یک به طول ۲۰۰ متر؛ جهت آماده‌سازی، رنگ‌آمیزی کوره‌ای، کنترل، مونتاژ مجموعه‌ها و بسته‌بندی نهایی محصولات.',
-          highlights: [
-            'مساحت سالن رنگ و مونتاژ ۴,۰۰۰ مترمربع',
-            '۲ خط رنگ استاندارد صنعتی هر یک به طول ۲۰۰ متر',
-            'تطابق دقیق با کدهای رنگی رسمی خودروها',
-            'مونتاژ دقیق قطعات و بسته‌بندی ایمن ضدضربه',
-          ],
           specs: [
             { label: 'مساحت سالن', value: '۴,۰۰۰ مترمربع' },
             { label: 'طول خطوط رنگ', value: '۲ خط مجزا، هرکدام ۲۰۰ متر' },
@@ -281,13 +271,6 @@ export const content = {
           title: 'سایت بازرگانی، تأمین و توزیع',
           category: 'مدیریت لجستیک و انبارش',
           scale: '۴,۰۰۰ مترمربع انبار',
-          description: 'سایت بازرگانی با انبار مرکزی ۴,۰۰۰ متری در شهر کرمان با سابقه بیش از ۳۰ سال، مسئولیت تدارکات داخلی و خارجی، نمایندگی‌ها، انبارش و ارسال سراسری قطعات را با تیمی مجرب عهده‌دار است.',
-          highlights: [
-            'انبار مرکزی قطعات به مساحت ۴,۰۰۰ مترمربع',
-            'سابقه بیش از ۳۰ سال در بازرگانی و نمایندگی‌ها',
-            'سیستم طبقه‌بندی و کدینگ مکانیزه اقلام',
-            'توزیع و تحویل زمان‌بندی‌شده در سراسر ایران',
-          ],
           specs: [
             { label: 'مساحت انبار', value: '۴,۰۰۰ مترمربع' },
             { label: 'سابقه سایت', value: 'بیش از ۳۰ سال فعالیت' },
@@ -338,77 +321,6 @@ export const content = {
           code: 'AKK-GRL-PARS',
         },
       ] as ProductShowcaseItem[],
-    },
-    activityDomains: {
-      kicker: 'گستره عملکرد تخصصی',
-      title: 'حوزه‌های فعالیت مجموعه',
-      subtitle: 'هشت محور عملیاتی مکمل که ستون‌های یکپارچگی صنعتی آریان خودرو خاورمیانه را شکل داده‌اند',
-      domains: [
-        {
-          id: 'manufacturing',
-          title: 'تولید',
-          subtitle: 'قطعات پلیمری و پلاستیکی خودرو',
-          description: 'تولید تخصصی انواع قطعات خودرویی بدنه، سپر، جلوپنجره و قالپاق با فناوری پیشرفته تزریق پلاستیک در سایت ۱۰,۰۰۰ متری.',
-          iconName: 'Factory',
-          tags: ['تزریق پلاستیک', 'قطعات بدنه', 'قالب‌سازی دقیق'],
-        },
-        {
-          id: 'commerce',
-          title: 'تأمین و بازرگانی',
-          subtitle: 'مدیریت تأمین داخلی و خارجی',
-          description: 'شبکه گسترده خرید و عقد تفاهم‌نامه‌های تجاری با مراکز معتبر برای تأمین پایدار ملزومات و قطعات استاندارد خودرویی.',
-          iconName: 'Briefcase',
-          tags: ['تأمین پایدار', 'روابط بازرگانی', 'سورسینگ تخصصی'],
-        },
-        {
-          id: 'import',
-          title: 'واردات',
-          subtitle: 'تدارکات بین‌المللی تخصصی',
-          description: 'تأمین و واردات قطعات خودرویی باکیفیت جهانی، تجهیزات و ماشین‌آلات مدرن با رعایت دقیق ضوابط و استانداردهای جهانی.',
-          iconName: 'PlaneTakeoff',
-          tags: ['قطعات اصلی', 'استاندارد بین‌المللی', 'زنجیره فرامرزی'],
-        },
-        {
-          id: 'granulation',
-          title: 'گرانول‌سازی',
-          subtitle: 'آماده‌سازی مهندسی مواد اولیه',
-          description: 'فرآوری، بازیافت تخصصی و تولید گرانول‌های پلیمری با مشخصات مکانیکی بالا در واحد اختصاصی ۱,۵۰۰ متری.',
-          iconName: 'Atom',
-          tags: ['پلیمر مهندسی', 'آماده‌سازی مواد', 'واحد ۱۵۰۰ متری'],
-        },
-        {
-          id: 'quality-control',
-          title: 'کنترل کیفیت',
-          subtitle: 'ارزیابی آزمایشگاهی و انطباق فنی',
-          description: 'پایش موشکافانه ابعادی، تست استحکام در برابر ضربه و تنش‌های حرارتی در تمامی ایستگاه‌های خطوط تولید و اقلام ورودی.',
-          iconName: 'CheckCircle2',
-          tags: ['آزمون ضربه', 'انطباق ابعادی', 'کنترل ایستگاهی'],
-        },
-        {
-          id: 'paint-assembly',
-          title: 'رنگ و مونتاژ',
-          subtitle: 'پوشش‌دهی تخصصی و مجموعه‌سازی',
-          description: 'خطوط پیشرفته رنگ‌آمیزی کوره‌ای با دو خط ۲۰۰ متری و سالن‌های مونتاژ مجموعه‌های خودرویی در سایت ۴,۰۰۰ متری.',
-          iconName: 'Paintbrush',
-          tags: ['۲ خط رنگ ۲۰۰ متری', 'مونتاژ مکانیکی', 'تطبیق فام رنگ'],
-        },
-        {
-          id: 'packaging',
-          title: 'بسته‌بندی',
-          subtitle: 'حفاظت مهندسی‌شده و برچسب‌گذاری',
-          description: 'بسته‌بندی صنعتی قطعات با متریال ضدضربه، نشان‌های اصالت کالا و برچسب‌های اطلاعات فنی جهت امنیت کامل در حمل.',
-          iconName: 'Box',
-          tags: ['ایمنی حمل', 'هولوگرام اصالت', 'کد رهگیری فنی'],
-        },
-        {
-          id: 'warehousing-dist',
-          title: 'انبار و توزیع',
-          subtitle: 'لجستیک یکپارچه و تحویل سراسری',
-          description: 'مدیریت لجستیک انبار ۴,۰۰۰ متری با نرم‌افزارهای یکپارچه و توزیع مویرگی ایمن قطعات به بازارهای هدف در تمامی استان‌ها.',
-          iconName: 'Container',
-          tags: ['سایت انبار ۴۰۰۰ متری', 'توزیع مویرگی', 'تحویل به‌موقع'],
-        },
-      ] as ActivityCard[],
     },
     brands: {
       kicker: 'هویت تجاری',
@@ -522,9 +434,7 @@ export const content = {
       { id: 'about', label: 'About Us' },
       { id: 'factory-tour', label: 'Factory Tour' },
       { id: 'value-chain', label: 'Value Chain' },
-      { id: 'capacities', label: 'Facilities' },
       { id: 'products', label: 'Products' },
-      { id: 'domains', label: 'Capabilities' },
       { id: 'brands', label: 'Brands' },
       { id: 'contact', label: 'Contact Us' },
     ] as NavItem[],
@@ -623,9 +533,9 @@ export const content = {
       ] as FactoryGalleryItem[],
     },
     valueChain: {
-      kicker: 'Operational Architecture',
+      kicker: 'Value Chain, Sites & Capabilities',
       title: 'Integrated Value Chain at Arian Khodro',
-      subtitle: 'Seamless coordination across 9 value stages, ensuring uniform quality and dependable nationwide delivery',
+      subtitle: '9 value stages across 4 operating sites, from sourcing and import to molding, painting, packaging and nationwide distribution, with uniform quality and dependable delivery',
       steps: [
         {
           id: 'sourcing',
@@ -634,7 +544,9 @@ export const content = {
           shortDesc: 'Strategic sourcing of certified materials and components',
           fullDesc: 'Continuous appraisal and auditing of world-class domestic and global suppliers based on automotive standards to ensure an uninterrupted, premium input stream.',
           keyOutputs: ['Tier-1 supplier qualification', 'Stringent input quality audits', 'Long-term supply stability'],
+          tags: ['Sustainable Supply', 'Strategic Alliances', 'Industrial Sourcing'],
           iconName: 'Network',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'procurement',
@@ -643,7 +555,9 @@ export const content = {
           shortDesc: 'International trading and domestic procurement operations',
           fullDesc: 'Targeted sourcing of OEM spare parts, precision industrial tooling, and advanced machinery through established global supply channels.',
           keyOutputs: ['Optimized commercial logistics', 'Compliant customs clearance', 'Automotive aftermarket fulfillment'],
+          tags: ['OEM Standards', 'Global Supply Chain', 'Customs Compliance'],
           iconName: 'Globe',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'raw-materials',
@@ -652,7 +566,9 @@ export const content = {
           shortDesc: 'Compounding and engineering thermoplastic polymers',
           fullDesc: 'Specialized formulation of automotive polymers (PP, ABS, PA alloys) engineered for superior structural integrity, impact resistance, and thermal tolerance.',
           keyOutputs: ['High-impact polymer formulas', 'Thermal & mechanical compliance', 'Climate-controlled warehouse storage'],
+          tags: ['Granulation', 'Engineering Polymers', '1,500 m² Unit'],
           iconName: 'Layers',
+          siteId: 'site-granulation',
         },
         {
           id: 'manufacturing',
@@ -661,7 +577,9 @@ export const content = {
           shortDesc: 'Precision injection molding and polymer shaping',
           fullDesc: 'Operating high-tonnage automated injection molding machines and specialized tooling lines to produce exterior and interior automotive parts with tight tolerances.',
           keyOutputs: ['Exterior body & styling parts', 'Micron-level tooling accuracy', 'Optimized lean production cycle'],
+          tags: ['Plastic Injection', 'Bumpers, Grilles, Wheel Covers', 'Precision Tooling'],
           iconName: 'Cpu',
+          siteId: 'site-production',
         },
         {
           id: 'quality-control',
@@ -670,7 +588,9 @@ export const content = {
           shortDesc: 'Rigorous laboratory testing at every production node',
           fullDesc: 'Comprehensive mechanical, tensile, and chemical evaluation, UV weathering resistance testing, and computerized dimensional inspection.',
           keyOutputs: ['Impact and load resistance testing', 'Coating adhesion & salt-spray tests', 'Zero-defect gate compliance'],
+          tags: ['Impact Analysis', 'Dimensional Precision', 'Station Audits'],
           iconName: 'ShieldCheck',
+          siteId: 'site-production',
         },
         {
           id: 'paint-assembly',
@@ -679,7 +599,9 @@ export const content = {
           shortDesc: 'Two 200m automated coating lines & modular assembly',
           fullDesc: 'Automated cleanroom paint lines applying durable automotive finishes calibrated to OEM color codes, paired with precision multi-component assembly stations.',
           keyOutputs: ['Two 200m paint conveyor lines', 'Exact OEM color calibration', 'Multi-part mechanical kitting'],
+          tags: ['Baked Coating', 'Modular Assembly', 'Color-Match Precision'],
           iconName: 'Palette',
+          siteId: 'site-paint-pack',
         },
         {
           id: 'packaging',
@@ -688,7 +610,9 @@ export const content = {
           shortDesc: 'Protective casing, technical labeling, and serialization',
           fullDesc: 'Engineered protective packaging to shield delicate automotive surfaces from transit abrasion, complete with holographic authentication marks.',
           keyOutputs: ['Anti-impact protective materials', 'Unique QR and barcode trackability', 'Distinctive Arian Khodro & MIBA branding'],
+          tags: ['Transit Security', 'Authentication Marks', 'Serial Barcoding'],
           iconName: 'PackageCheck',
+          siteId: 'site-paint-pack',
         },
         {
           id: 'warehousing',
@@ -697,7 +621,9 @@ export const content = {
           shortDesc: 'Organized storage in a 4,000 m² central logistics hub',
           fullDesc: 'Automated inventory indexing, climate-regulated storage, and rapid pick-pack operations ensuring product integrity and immediate dispatch.',
           keyOutputs: ['Smart warehouse management system', '4,000 m² central storage capacity', 'Rapid fulfillment processing'],
+          tags: ['4,000 m² Facility', 'Automated Indexing', 'Inventory Control'],
           iconName: 'Warehouse',
+          siteId: 'site-commercial-logistics',
         },
         {
           id: 'distribution',
@@ -706,27 +632,17 @@ export const content = {
           shortDesc: 'Nationwide logistics network serving provincial hubs',
           fullDesc: 'End-to-end transport and delivery network supplying certified automotive parts to regional dealers, commercial partners, and authorized retailers nationwide.',
           keyOutputs: ['Countrywide logistics footprint', 'Rapid market responsiveness', 'Guaranteed product provenance'],
+          tags: ['Nationwide Logistics', 'Provincial Hubs', 'Timely Fulfillment'],
           iconName: 'Truck',
+          siteId: 'site-commercial-logistics',
         },
       ] as ValueChainStep[],
-    },
-    capacities: {
-      kicker: 'Operational Infrastructure',
-      title: 'Industrial Facilities & 4 Operating Sites',
-      subtitle: 'Four dedicated operational sites synchronized to execute the end-to-end automotive value chain',
-      facilities: [
+      sites: [
         {
           id: 'site-production',
           title: 'Manufacturing Plant',
           category: 'Automotive Polymer Production',
           scale: '10,000 m²',
-          description: 'Situated in Industrial City No. 2 of Kerman, this heavy industrial plant features high-tonnage automated injection molding systems producing critical polymer exterior components with consistent precision.',
-          highlights: [
-            'Total industrial plant area of 10,000 m²',
-            'High-tonnage automated injection molding machinery',
-            'Dedicated production of bumpers, grilles, and wheel covers',
-            'Capacity to mold from minute clips to full vehicle front-ends',
-          ],
           specs: [
             { label: 'Plant Footprint', value: '10,000 m²' },
             { label: 'Location', value: 'Industrial City No. 2, Kerman' },
@@ -742,13 +658,6 @@ export const content = {
           title: 'Granulation & Compounding Unit',
           category: 'Raw Material Preparation',
           scale: '1,500 m²',
-          description: 'Covering 1,500 m², the granulation unit formulates and prepares high-specification thermoplastic polymer pellets, ensuring optimal mechanical strength, impact tolerance, and flow consistency for the injection molding lines.',
-          highlights: [
-            'Dedicated 1,500 m² facility footprint',
-            'Scientific formulation of thermoplastic compounds',
-            'Continuous Melt Flow Index (MFI) and density monitoring',
-            'Enhanced structural resilience against environmental stress',
-          ],
           specs: [
             { label: 'Facility Footprint', value: '1,500 m²' },
             { label: 'Primary Mission', value: 'Polymer Raw Material Preparation' },
@@ -764,13 +673,6 @@ export const content = {
           title: 'Painting, Assembly & Packaging Unit',
           category: 'Finishing & Sub-Assembly',
           scale: '4,000 m² (Two 200m Lines)',
-          description: 'Built across 4,000 m² with two 200-meter standard industrial coating lines, this unit delivers premium durable paint finishes matching OEM vehicle color standards, followed by sub-assembly and protective packaging.',
-          highlights: [
-            'Finishing and packaging hall spanning 4,000 m²',
-            'Two 200-meter automated baking paint lines',
-            'Precision fastener, clip, and multi-component assembly stations',
-            '100% visual and spectrophotometer finish inspection',
-          ],
           specs: [
             { label: 'Facility Area', value: '4,000 m²' },
             { label: 'Paint Conveyor Length', value: 'Two lines, 200 meters each' },
@@ -786,13 +688,6 @@ export const content = {
           title: 'Trading, Supply & Distribution Site',
           category: 'Commercial Hub & Logistics',
           scale: '4,000 m² Warehouse',
-          description: 'Serving as the central commercial headquarters and logistics fulfillment hub for over 30 years, this 4,000 m² facility coordinates domestic and foreign procurement, computerized inventory controls, and distribution schedules.',
-          highlights: [
-            'Central logistics warehouse spanning 4,000 m²',
-            'Over 30 years of established trade expertise',
-            'Integrated supply chain and trade management',
-            'Scheduled, dependable dispatches to all distribution hubs',
-          ],
           specs: [
             { label: 'Warehouse Area', value: '4,000 m²' },
             { label: 'Site Heritage', value: 'Over 30 Years Experience' },
@@ -843,77 +738,6 @@ export const content = {
           code: 'AKK-GRL-PARS',
         },
       ] as ProductShowcaseItem[],
-    },
-    activityDomains: {
-      kicker: 'Operational Scope',
-      title: 'Core Business Activities',
-      subtitle: 'Eight interconnected pillars defining the industrial strength of Arian Khodro Middle East',
-      domains: [
-        {
-          id: 'manufacturing',
-          title: 'Manufacturing',
-          subtitle: 'Automotive Polymer & Plastic Components',
-          description: 'High-precision production of bumpers, radiator grilles, wheel covers, and automotive structural components in our 10,000 m² facility.',
-          iconName: 'Factory',
-          tags: ['Plastic Injection', 'Exterior Body Parts', 'Precision Tooling'],
-        },
-        {
-          id: 'commerce',
-          title: 'Procurement & Trade',
-          subtitle: 'Domestic & International Sourcing',
-          description: 'Strategic sourcing and commercial alliances with certified partners to maintain an unbroken supply of compliant automotive components.',
-          iconName: 'Briefcase',
-          tags: ['Sustainable Supply', 'Strategic Alliances', 'Industrial Sourcing'],
-        },
-        {
-          id: 'import',
-          title: 'Import',
-          subtitle: 'Specialized Global Trade Operations',
-          description: 'Procuring certified international automotive replacement parts, manufacturing equipment, and polymer additives adhering to global standards.',
-          iconName: 'PlaneTakeoff',
-          tags: ['OEM Standards', 'Global Supply Chain', 'Customs Compliance'],
-        },
-        {
-          id: 'granulation',
-          title: 'Granulation & Compounding',
-          subtitle: 'Polymer Raw Material Formulation',
-          description: 'In-house compounding, processing, and pelletizing of high-grade engineering polymers in our 1,500 m² specialized facility.',
-          iconName: 'Atom',
-          tags: ['Engineering Polymers', '1,500 m² Unit', 'Property Enhancement'],
-        },
-        {
-          id: 'quality-control',
-          title: 'Quality Control',
-          subtitle: 'Laboratory Testing & Verification',
-          description: 'Comprehensive mechanical stress testing, impact analysis, and dimensional verification at each station across the manufacturing spectrum.',
-          iconName: 'CheckCircle2',
-          tags: ['Impact Analysis', 'Dimensional Precision', 'Stationary Audits'],
-        },
-        {
-          id: 'paint-assembly',
-          title: 'Painting & Assembly',
-          subtitle: 'Specialized Coating & Sub-Assembly',
-          description: 'Two 200m automated baking and spray paint lines guaranteeing uniform adhesion, matched with specialized sub-assembly and kitting lines.',
-          iconName: 'Paintbrush',
-          tags: ['Two 200m Lines', 'Modular Assembly', 'Color-Match Precision'],
-        },
-        {
-          id: 'packaging',
-          title: 'Packaging',
-          subtitle: 'Engineered Protective Packaging',
-          description: 'Heavy-duty cushioned packaging, tamper-evident security holograms, and digitized barcodes ensuring transit safety and authenticity.',
-          iconName: 'Box',
-          tags: ['Transit Security', 'Authentication Marks', 'Serial Barcoding'],
-        },
-        {
-          id: 'warehousing-dist',
-          title: 'Warehousing & Distribution',
-          subtitle: 'Nationwide Logistics Execution',
-          description: 'Managing a 4,000 m² central warehouse facility with digitized inventory tracking, orchestrating steady distribution across all regional markets.',
-          iconName: 'Container',
-          tags: ['4,000 m² Facility', 'Nationwide Logistics', 'Timely Fulfillment'],
-        },
-      ] as ActivityCard[],
     },
     brands: {
       kicker: 'Brand Portfolio',

@@ -2,20 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Language } from '../types';
 import { HeroContent } from './HeroContent';
 import { PorscheShowcase } from './porsche/PorscheShowcase';
+import { useMediaQuery } from '../hooks/useMediaQuery';
 
 const DESKTOP_QUERY = '(min-width: 1024px)';
-
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const onChange = () => setMatches(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, [query]);
-  return matches;
-}
 
 /** Sticky offset that keeps content taller than the viewport bottom-aligned instead of clipped. */
 function useStickyTop(ref: React.RefObject<HTMLElement | null>) {

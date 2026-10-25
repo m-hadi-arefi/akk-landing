@@ -10,17 +10,7 @@ import {
   Mouse,
 } from 'lucide-react';
 import { Language, FactoryGalleryItem } from '../types';
-
-// فاصله اسکرول برای رفتن از یک آیتم به آیتم بعدی، به نسبت ارتفاع صفحه
-const STEP_VIEWPORT_RATIO = 0.6;
-// حداقل فاصله زمانی بین دو گام، هم‌اندازه با انیمیشن cross-fade تصویر
-const STEP_LOCK_MS = 500;
-// سکوت لازم بین رویدادهای wheel تا حرکت بعدی یک ژست جدید حساب شود (اینرسی تاچ‌پد را می‌بلعد)
-const GESTURE_GAP_MS = 180;
-// مدتی که پس از ورودی کاربر، ورود ناخواسته به سکشن با شتاب اسکرول مهار می‌شود
-const WHEEL_INPUT_WINDOW_MS = 250;
-const TOUCH_MOMENTUM_WINDOW_MS = 1200;
-const SWIPE_MIN_PX = 40;
+import { useStepScroll } from '../hooks/useStepScroll';
 
 interface FactoryGalleryProps {
   lang: Language;
@@ -40,14 +30,14 @@ export const FactoryGallery: React.FC<FactoryGalleryProps> = ({
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
 
-  const sectionRef = useRef<HTMLElement | null>(null);
-  const pinRef = useRef<HTMLDivElement | null>(null);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
-  // top منفی برای وقتی محتوای سکشن از ارتفاع صفحه بلندتر است تا پایین آن هم دیده شود
-  const [stickyTop, setStickyTop] = useState<number>(0);
-  const [stepPx, setStepPx] = useState<number>(0);
-  const pinRun = Math.max(0, items.length - 1) * stepPx;
+  // سکشن چسبان: هر ژست اسکرول/لمس/کلید دقیقاً یک آیتم جابه‌جا می‌کند
+  const { sectionRef, pinRef, stickyTop, pinRun, goTo } = useStepScroll<HTMLElement>({
+    count: items.length,
+    setActiveIndex,
+    paused: isLightboxOpen,
+  });
 
   const isRTL = lang === 'fa';
   const activeItem = items[activeIndex] || items[0];
@@ -64,194 +54,6 @@ export const FactoryGallery: React.FC<FactoryGalleryProps> = ({
     }
   }, [activeIndex]);
 
-  // اندازه‌گیری ارتفاع بخش چسبان و فاصله اسکرول هر آیتم
-  useEffect(() => {
-    const pin = pinRef.current;
-    if (!pin) return;
-
-    const measure = () => {
-      const vh = window.innerHeight;
-      setStickyTop(Math.min(0, vh - pin.offsetHeight));
-      setStepPx(Math.round(vh * STEP_VIEWPORT_RATIO));
-    };
-    measure();
-
-    const observer = new ResizeObserver(measure);
-    observer.observe(pin);
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
-
-  const lightboxOpenRef = useRef(false);
-  lightboxOpenRef.current = isLightboxOpen;
-
-  // سکشن با position: sticky ثابت می‌ماند و آیتم فعال از روی میزان اسکرول محاسبه می‌شود.
-  // در محدوده چسبان، هر ژست wheel/لمس/کلید دقیقاً یک آیتم جابه‌جا می‌کند؛ چون محتوا در این محدوده ثابت است،
-  // پرش آنی موقعیت اسکرول دیده نمی‌شود و فقط آیتم فعال عوض می‌شود.
-  useEffect(() => {
-    const section = sectionRef.current;
-    const count = items.length;
-    if (!section || pinRun <= 0) return;
-
-    const getStart = () => window.scrollY + section.getBoundingClientRect().top - stickyTop;
-    const isInside = (y: number, start: number) => y >= start - 1 && y <= start + pinRun + 1;
-    const indexAt = (y: number, start: number) => {
-      const progress = Math.min(1, Math.max(0, (y - start) / pinRun));
-      return Math.min(count - 1, Math.floor(progress * count));
-    };
-
-    let lockUntil = 0;
-    let lastWheelAt = 0;
-    let lastAbsDelta = 0;
-    let inputUntil = 0;
-
-    const jumpTo = (idx: number, start: number) => {
-      window.scrollTo({ top: start + ((idx + 0.5) / count) * pinRun, behavior: 'instant' });
-      setActiveIndex(idx);
-      lockUntil = performance.now() + STEP_LOCK_MS;
-    };
-
-    // خروج از سکشن: پرش آنی به لبه محدوده چسبان و ادامه اسکرول نرم از همانجا
-    const exitTo = (edge: number, delta: number) => {
-      window.scrollTo({ top: edge, behavior: 'instant' });
-      window.scrollBy({ top: delta, behavior: 'smooth' });
-      lockUntil = performance.now() + STEP_LOCK_MS;
-    };
-
-    const step = (dir: number, delta: number) => {
-      const start = getStart();
-      const next = indexAt(window.scrollY, start) + dir;
-      if (next < 0) exitTo(start - 2, delta);
-      else if (next >= count) exitTo(start + pinRun + 2, delta);
-      else jumpTo(next, start);
-    };
-
-    let frame = 0;
-    let lastY = window.scrollY;
-    const update = () => {
-      frame = 0;
-      const y = window.scrollY;
-      const start = getStart();
-      const end = start + pinRun;
-      const enteredFromAbove = lastY < start - 1 && y > start + 1;
-      const enteredFromBelow = lastY > end + 1 && y < end - 1;
-      lastY = y;
-
-      // اسکرول پرشتاب نباید از روی آیتم‌ها رد شود: ورود به سکشن روی اولین/آخرین آیتم مهار می‌شود
-      if ((enteredFromAbove || enteredFromBelow) && performance.now() < inputUntil) {
-        jumpTo(enteredFromAbove ? 0 : count - 1, start);
-        lastY = window.scrollY;
-        return;
-      }
-
-      const idx = indexAt(y, start);
-      setActiveIndex((prev) => (prev === idx ? prev : idx));
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(update);
-    };
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || lightboxOpenRef.current) return;
-      if (Math.abs(e.deltaY) < Math.abs(e.deltaX)) return;
-      const delta =
-        e.deltaMode === 1 ? e.deltaY * 16 : e.deltaMode === 2 ? e.deltaY * window.innerHeight : e.deltaY;
-      if (!delta) return;
-
-      const now = performance.now();
-      const sinceLast = now - lastWheelAt;
-      const absDelta = Math.abs(delta);
-      // ژست جدید: مکث بعد از رویداد قبلی، یا ضربه مجزای چرخ موس، یا جهش ناگهانی وسط اینرسی تاچ‌پد
-      const freshGesture =
-        sinceLast > GESTURE_GAP_MS ||
-        (sinceLast > 50 && absDelta >= 50) ||
-        (absDelta > 20 && absDelta > lastAbsDelta * 1.8);
-      lastWheelAt = now;
-      lastAbsDelta = absDelta;
-      inputUntil = now + WHEEL_INPUT_WINDOW_MS;
-
-      if (!isInside(window.scrollY, getStart())) return;
-      e.preventDefault();
-      if (now >= lockUntil && freshGesture) step(delta > 0 ? 1 : -1, delta);
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (lightboxOpenRef.current || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
-      if (e.key === ' ' && target && /^(BUTTON|A)$/.test(target.tagName)) return;
-
-      let dir = 0;
-      if (e.key === 'ArrowDown' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) dir = 1;
-      else if (e.key === 'ArrowUp' || e.key === 'PageUp' || (e.key === ' ' && e.shiftKey)) dir = -1;
-      if (!dir) return;
-
-      const start = getStart();
-      if (!isInside(window.scrollY, start)) return;
-      const next = indexAt(window.scrollY, start) + dir;
-      if (next < 0 || next >= count) {
-        // روی لبه سکشن، اسکرول پیش‌فرض کلید از مرز محدوده چسبان ادامه پیدا می‌کند
-        window.scrollTo({ top: next < 0 ? start - 2 : start + pinRun + 2, behavior: 'instant' });
-        return;
-      }
-      e.preventDefault();
-      jumpTo(next, start);
-    };
-
-    let touchStartY: number | null = null;
-    let touchDecided = false;
-    let touchCaptured = false;
-    const onTouchStart = (e: TouchEvent) => {
-      touchStartY = e.touches.length === 1 ? e.touches[0].clientY : null;
-      touchDecided = false;
-      touchCaptured = false;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (touchStartY === null || lightboxOpenRef.current) return;
-      const dy = touchStartY - e.touches[0].clientY;
-      if (!touchDecided) {
-        if (!dy) return;
-        const start = getStart();
-        const next = indexAt(window.scrollY, start) + (dy > 0 ? 1 : -1);
-        touchCaptured = isInside(window.scrollY, start) && next >= 0 && next < count;
-        touchDecided = true;
-      }
-      if (touchCaptured && e.cancelable) e.preventDefault();
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      if (touchStartY === null) return;
-      const dy = touchStartY - e.changedTouches[0].clientY;
-      if (touchCaptured) {
-        if (Math.abs(dy) >= SWIPE_MIN_PX) step(dy > 0 ? 1 : -1, dy);
-      } else {
-        inputUntil = performance.now() + TOUCH_MOMENTUM_WINDOW_MS;
-      }
-      touchStartY = null;
-    };
-
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('wheel', onWheel, { passive: false });
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
-    window.addEventListener('touchend', onTouchEnd, { passive: true });
-    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
-      window.removeEventListener('touchcancel', onTouchEnd);
-      cancelAnimationFrame(frame);
-    };
-  }, [pinRun, stickyTop, items.length]);
-
   // جلوگیری از اسکرول صفحه (و تغییر آیتم) زیر لایت‌باکس
   useEffect(() => {
     if (!isLightboxOpen) return;
@@ -261,23 +63,6 @@ export const FactoryGallery: React.FC<FactoryGalleryProps> = ({
       document.body.style.overflow = prevOverflow;
     };
   }, [isLightboxOpen]);
-
-  // دکمه‌ها صفحه را به محل اسکرول همان آیتم می‌برند تا با موقعیت اسکرول هماهنگ بمانند
-  const goTo = (idx: number) => {
-    const section = sectionRef.current;
-    const target = Math.min(items.length - 1, Math.max(0, idx));
-    if (!section || pinRun <= 0) {
-      setActiveIndex(target);
-      return;
-    }
-    const start = window.scrollY + section.getBoundingClientRect().top - stickyTop;
-    const inside = window.scrollY >= start - 1 && window.scrollY <= start + pinRun + 1;
-    window.scrollTo({
-      top: start + ((target + 0.5) / items.length) * pinRun,
-      behavior: inside ? 'instant' : 'smooth',
-    });
-    if (inside) setActiveIndex(target);
-  };
 
   if (!items || items.length === 0) return null;
 

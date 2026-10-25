@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Calendar, CheckCircle2, ChevronRight, Award, Sparkles } from 'lucide-react';
 import { Language } from '../types';
 
+const READING_LINE_RATIO = 0.6;
+
 interface AboutIntroProps {
   lang: Language;
   kicker: string;
@@ -22,30 +24,45 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
   milestones,
 }) => {
   const isRtl = lang === 'fa';
-  const timelineRef = useRef<HTMLDivElement>(null);
+  const spineRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const nodeRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [reachedCount, setReachedCount] = useState(0);
 
-  // محاسبه میزان اسکرول در بخش تایم‌لاین برای پر شدن خط پیشرفت
+  // خط پیشرفت با عبور تایم‌لاین از «خط مطالعه» (نسبتی از ارتفاع صفحه) پر می‌شود و هر نقطه با رسیدن خط فعال می‌شود
   useEffect(() => {
-    const handleScroll = () => {
-      if (!timelineRef.current) return;
-      const rect = timelineRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      
-      // محاسبه درصد اسکرول درون کانتینر تایم‌لاین
-      const elementTop = rect.top;
-      const elementHeight = rect.height;
-      
-      if (elementTop < windowHeight && elementTop + elementHeight > 0) {
-        const scrolled = (windowHeight - elementTop) / (windowHeight + elementHeight);
-        const progress = Math.min(Math.max(scrolled * 100, 0), 100);
-        setScrollProgress(progress);
-      }
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const spine = spineRef.current;
+      if (!spine) return;
+      const readingLine = window.innerHeight * READING_LINE_RATIO;
+      const rect = spine.getBoundingClientRect();
+      const progress = rect.height > 0 ? Math.min(1, Math.max(0, (readingLine - rect.top) / rect.height)) : 0;
+
+      if (fillRef.current) fillRef.current.style.transform = `scaleY(${progress})`;
+      setScrollProgress(Math.round(progress * 100));
+      setReachedCount(
+        nodeRefs.current.filter((node) => {
+          if (!node) return false;
+          const nodeRect = node.getBoundingClientRect();
+          return nodeRect.top + nodeRect.height / 2 <= readingLine;
+        }).length
+      );
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   return (
@@ -136,7 +153,7 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
           </div>
 
           {/* Column 2: Milestone Timeline with Scroll Progress Effect (5 Cols) */}
-          <div className="lg:col-span-5" ref={timelineRef}>
+          <div className="lg:col-span-5">
             <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-7 shadow-sm relative overflow-hidden">
               
               <div className="flex items-center justify-between pb-5 border-b border-slate-100 text-xs font-bold text-slate-800">
@@ -145,45 +162,57 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
                   <span>{lang === 'fa' ? 'مسیر تحول و رشد سازمانی' : 'Corporate Evolution & Milestones'}</span>
                 </div>
                 <span className="text-[10px] text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-mono">
-                  {Math.round(scrollProgress)}%
+                  {scrollProgress}%
                 </span>
               </div>
 
               <div className="mt-6 relative">
-                {/* Vertical timeline background spine */}
+                {/* Vertical timeline background spine with scroll progress fill */}
                 <div 
+                  ref={spineRef}
                   className={`absolute top-2 bottom-2 w-0.5 bg-slate-100 ${
                     isRtl ? 'right-3' : 'left-3'
                   }`}
-                />
-
-                {/* Active scroll progress spine */}
-                <div 
-                  className={`absolute top-2 w-0.5 bg-gradient-to-b from-blue-600 to-indigo-600 transition-all duration-150 ${
-                    isRtl ? 'right-3' : 'left-3'
-                  }`}
-                  style={{ height: `${scrollProgress}%` }}
-                />
+                >
+                  <div
+                    ref={fillRef}
+                    className="absolute inset-0 origin-top bg-gradient-to-b from-blue-600 to-indigo-600 transition-transform duration-150 ease-out will-change-transform"
+                    style={{ transform: 'scaleY(0)' }}
+                  />
+                </div>
 
                 <div className="space-y-7">
-                  {milestones.map((item, idx) => (
+                  {milestones.map((item, idx) => {
+                    const isReached = idx < reachedCount;
+                    return (
                     <div 
                       key={idx} 
-                      className={`relative flex items-start gap-4 group transition-all duration-300 hover:translate-x-1 ${
+                      className={`relative flex items-start gap-4 group transition-transform duration-300 hover:translate-x-1 ${
                         isRtl ? 'pr-8' : 'pl-8'
                       }`}
                     >
-                      {/* Timeline Node with Pulse on Active Progress */}
+                      {/* Timeline Node, filled once the progress line reaches it */}
                       <div 
-                        className={`absolute top-1 w-6 h-6 rounded-full bg-white border-2 border-blue-600 flex items-center justify-center shadow-xs group-hover:scale-125 group-hover:bg-blue-600 transition-all duration-300 ${
-                          isRtl ? 'right-0' : 'left-0'
-                        }`}
+                        ref={(el) => {
+                          nodeRefs.current[idx] = el;
+                        }}
+                        className={`absolute top-1 w-6 h-6 rounded-full border-2 flex items-center justify-center shadow-xs group-hover:scale-125 group-hover:bg-blue-600 group-hover:border-blue-600 transition-all duration-300 ${
+                          isReached ? 'bg-blue-600 border-blue-600 scale-110 shadow-blue-200' : 'bg-white border-slate-300'
+                        } ${isRtl ? 'right-0' : 'left-0'}`}
                       >
-                        <div className="w-2 h-2 rounded-full bg-blue-600 group-hover:bg-white transition-colors" />
+                        <div
+                          className={`w-2 h-2 rounded-full group-hover:bg-white transition-colors duration-300 ${
+                            isReached ? 'bg-white' : 'bg-slate-300'
+                          }`}
+                        />
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 p-3 rounded-xl transition-colors group-hover:bg-slate-50/80 border border-transparent group-hover:border-slate-100">
+                      <div
+                        className={`flex-1 p-3 rounded-xl transition-all duration-500 group-hover:bg-slate-50/80 border border-transparent group-hover:border-slate-100 ${
+                          isReached ? 'opacity-100' : 'opacity-55'
+                        }`}
+                      >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-bold font-mono text-blue-700 tabular-nums bg-blue-50 px-2 py-0.5 rounded-md">
                             {item.year}
@@ -198,7 +227,8 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
                         </p>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

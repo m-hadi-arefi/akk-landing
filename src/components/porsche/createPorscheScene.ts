@@ -1491,33 +1491,371 @@ export function createPorscheScene(
   addChassisStrut(new THREE.Vector3(-0.48, 0.56, 1.42), new THREE.Vector3(0.48, 0.56, 1.42), 0.024);
   addChassisStrut(new THREE.Vector3(-0.52, 0.54, -1.78), new THREE.Vector3(0.52, 0.54, -1.78), 0.026);
 
+  const extrudeZ = (shape: THREE.Shape, depth: number, curveSegments = 12) => {
+    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments });
+    geo.translate(0, 0, -depth / 2);
+    return geo;
+  };
+
+  const roundedRectShape = (w: number, h: number, r: number) => {
+    const shape = new THREE.Shape();
+    const x = -w / 2;
+    const y = -h / 2;
+    shape.moveTo(x + r, y);
+    shape.lineTo(x + w - r, y);
+    shape.quadraticCurveTo(x + w, y, x + w, y + r);
+    shape.lineTo(x + w, y + h - r);
+    shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    shape.lineTo(x + r, y + h);
+    shape.quadraticCurveTo(x, y + h, x, y + h - r);
+    shape.lineTo(x, y + r);
+    shape.quadraticCurveTo(x, y, x + r, y);
+    return shape;
+  };
+
+  // Horizontal slab: w along x, d along z, h along y.
+  const roundedSlab = (w: number, d: number, h: number, r: number) => {
+    const geo = extrudeZ(roundedRectShape(w, d, r), h, 8);
+    geo.rotateX(-Math.PI / 2);
+    return geo;
+  };
+
+  // Shape drawn in the (z, y) side view, extruded across the car's width.
+  const extrudeAcrossX = (sideProfile: THREE.Shape, width: number) => {
+    const geo = new THREE.ExtrudeGeometry(sideProfile, { depth: width, bevelEnabled: false, curveSegments: 10 });
+    geo.rotateY(-Math.PI / 2);
+    geo.translate(width / 2, 0, 0);
+    return geo;
+  };
+
+  const lineTickMat = new THREE.LineBasicMaterial({ color: 0xd8d4c8, transparent: true, opacity: 0.9 });
+
   const interiorGroup = new THREE.Group();
   carRoot.add(interiorGroup);
 
+  // --------------------------------------------------------------------------
+  // 7A. CARBON-SHELL BUCKET SEATS
+  // --------------------------------------------------------------------------
+  const seatShellShape = (() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.20, 0);
+    shape.lineTo(0.20, 0);
+    shape.lineTo(0.225, 0.48);
+    shape.quadraticCurveTo(0.225, 0.56, 0.15, 0.58);
+    shape.lineTo(0.13, 0.61);
+    shape.lineTo(0.14, 0.72);
+    shape.quadraticCurveTo(0.14, 0.78, 0.08, 0.78);
+    shape.lineTo(-0.08, 0.78);
+    shape.quadraticCurveTo(-0.14, 0.78, -0.14, 0.72);
+    shape.lineTo(-0.13, 0.61);
+    shape.lineTo(-0.15, 0.58);
+    shape.quadraticCurveTo(-0.225, 0.56, -0.225, 0.48);
+    shape.closePath();
+    // Harness slots between the shoulder wings and the integrated headrest.
+    [-0.065, 0.065].forEach((hx) => {
+      const slot = new THREE.Path();
+      slot.moveTo(hx - 0.025, 0.585);
+      slot.lineTo(hx - 0.025, 0.605);
+      slot.lineTo(hx + 0.025, 0.605);
+      slot.lineTo(hx + 0.025, 0.585);
+      slot.closePath();
+      shape.holes.push(slot);
+    });
+    return shape;
+  })();
+
+  const seatWingShape = (() => {
+    const shape = new THREE.Shape();
+    shape.moveTo(-0.04, 0);
+    shape.lineTo(0.04, 0);
+    shape.lineTo(0.03, 0.50);
+    shape.quadraticCurveTo(0.0, 0.535, -0.035, 0.52);
+    shape.closePath();
+    return shape;
+  })();
+
   [-1, 1].forEach((s) => {
     const seat = new THREE.Group();
-    seat.position.set(s * 0.36, 0.26, 0.02);
-    seat.add(createSketchMesh(new THREE.BoxGeometry(0.44, 0.09, 0.48), matMachinedAlloy));
-    const backrest = createSketchMesh(new THREE.BoxGeometry(0.42, 0.64, 0.09), matPorscheBody);
-    backrest.position.set(0, 0.32, -0.20);
-    backrest.rotation.x = -0.22;
-    seat.add(backrest);
-    const headrest = createSketchMesh(new THREE.BoxGeometry(0.24, 0.18, 0.08), matMachinedAlloy);
-    headrest.position.set(0, 0.68, -0.28);
-    headrest.rotation.x = -0.18;
-    seat.add(headrest);
+    seat.position.set(s * 0.36, 0.205, 0.02);
+
+    [-0.15, 0.15].forEach((rx) => {
+      const rail = createSketchMesh(new THREE.BoxGeometry(0.022, 0.022, 0.46), matMachinedAlloy);
+      rail.position.set(rx, 0.011, 0);
+      seat.add(rail);
+    });
+    const frame = createSketchMesh(new THREE.BoxGeometry(0.40, 0.035, 0.44), matDarkCharcoal);
+    frame.position.y = 0.04;
+    seat.add(frame);
+
+    const cushion = new THREE.Group();
+    cushion.position.y = 0.06;
+    cushion.rotation.x = -0.07;
+    seat.add(cushion);
+
+    const cushionCenter = createSketchMesh(roundedSlab(0.25, 0.40, 0.05, 0.04), matPorscheBody);
+    cushionCenter.position.y = 0.035;
+    cushion.add(cushionCenter);
+    [-1, 1].forEach((bx) => {
+      const bolster = createSketchMesh(roundedSlab(0.075, 0.42, 0.085, 0.03), matMachinedAlloy);
+      bolster.position.set(bx * 0.165, 0.05, 0);
+      cushion.add(bolster);
+    });
+    const frontRoll = createSketchMesh(new THREE.CylinderGeometry(0.03, 0.03, 0.25, 16), matPorscheBody, 30);
+    frontRoll.rotation.z = Math.PI / 2;
+    frontRoll.position.set(0, 0.045, 0.20);
+    cushion.add(frontRoll);
+    [-0.07, 0.07].forEach((sx) => {
+      cushion.add(createPencilCurveLine(
+        [new THREE.Vector3(sx, 0.061, -0.18), new THREE.Vector3(sx, 0.061, 0.17)],
+        false,
+        lineMidMat,
+      ));
+    });
+    [-0.10, 0.0, 0.10].forEach((sz) => {
+      cushion.add(createPencilCurveLine(
+        [new THREE.Vector3(-0.07, 0.061, sz), new THREE.Vector3(0.07, 0.061, sz)],
+        false,
+        lineMidMat,
+      ));
+    });
+
+    const back = new THREE.Group();
+    back.position.set(0, 0.07, -0.21);
+    back.rotation.x = -0.22;
+    seat.add(back);
+
+    const shell = createSketchMesh(extrudeZ(seatShellShape, 0.035, 10), matDarkCharcoal);
+    shell.position.z = -0.03;
+    back.add(shell);
+
+    const backPanel = createSketchMesh(extrudeZ(roundedRectShape(0.25, 0.50, 0.05), 0.045, 8), matPorscheBody);
+    backPanel.position.set(0, 0.29, 0.01);
+    back.add(backPanel);
+    for (let fy = 0.10; fy <= 0.49; fy += 0.065) {
+      back.add(createPencilCurveLine(
+        [new THREE.Vector3(-0.11, fy, 0.034), new THREE.Vector3(0.11, fy, 0.034)],
+        false,
+        lineMidMat,
+      ));
+    }
+
+    [-1, 1].forEach((bx) => {
+      const wing = createSketchMesh(extrudeZ(seatWingShape, 0.10, 8), matMachinedAlloy);
+      wing.position.set(bx * 0.172, 0.02, 0.03);
+      wing.rotation.y = -bx * 0.28;
+      back.add(wing);
+    });
+
+    const headPad = createSketchMesh(extrudeZ(roundedRectShape(0.20, 0.13, 0.04), 0.04, 8), matPorscheBody);
+    headPad.position.set(0, 0.69, 0.005);
+    back.add(headPad);
+    const crest = new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), matYellowCaliper);
+    crest.position.set(0, 0.69, 0.026);
+    back.add(crest);
+
+    const reclineKnob = createSketchMesh(new THREE.CylinderGeometry(0.025, 0.025, 0.02, 16), matMachinedAlloy, 30);
+    reclineKnob.rotation.z = Math.PI / 2;
+    reclineKnob.position.set(s * 0.21, 0.08, -0.19);
+    seat.add(reclineKnob);
+
     interiorGroup.add(seat);
   });
 
+  // --------------------------------------------------------------------------
+  // 7B. DASHBOARD, FIVE-DIAL CLUSTER, STEERING WHEEL & CENTRE CONSOLE
+  // --------------------------------------------------------------------------
   {
-    const dashBeam = createSketchMesh(new THREE.BoxGeometry(1.32, 0.24, 0.36), matMachinedAlloy);
-    dashBeam.position.set(0, 0.68, 0.68);
-    interiorGroup.add(dashBeam);
+    const dashProfile = new THREE.Shape();
+    dashProfile.moveTo(0.86, 0.56);
+    dashProfile.lineTo(0.86, 0.79);
+    dashProfile.lineTo(0.66, 0.815);
+    dashProfile.quadraticCurveTo(0.52, 0.82, 0.49, 0.795);
+    dashProfile.lineTo(0.465, 0.74);
+    dashProfile.lineTo(0.475, 0.62);
+    dashProfile.quadraticCurveTo(0.49, 0.57, 0.53, 0.56);
+    dashProfile.closePath();
+    interiorGroup.add(createSketchMesh(extrudeAcrossX(dashProfile, 1.30), matMachinedAlloy));
 
-    const steeringWheel = createSketchMesh(new THREE.TorusGeometry(0.155, 0.02, 10, 24), matDarkCharcoal);
-    steeringWheel.position.set(0.36, 0.72, 0.44);
-    steeringWheel.rotation.x = -0.32;
-    interiorGroup.add(steeringWheel);
+    [-1, 1].forEach((sx) => {
+      const trimStrip = createSketchMesh(new THREE.BoxGeometry(0.48, 0.012, 0.01), matPorscheBody);
+      trimStrip.position.set(sx * 0.385, 0.70, 0.462);
+      interiorGroup.add(trimStrip);
+    });
+
+    // Driver's instrument cowl over the classic five round dials (driver sits at +x).
+    const DRIVER_X = 0.36;
+    const cowlGeo = new THREE.CylinderGeometry(0.21, 0.21, 0.11, 32, 1, true, Math.PI / 2, Math.PI);
+    cowlGeo.rotateX(Math.PI / 2);
+    const cowl = createSketchMesh(cowlGeo, matDarkCharcoal, 30);
+    cowl.position.set(DRIVER_X, 0.745, 0.455);
+    interiorGroup.add(cowl);
+
+    const clusterBack = createSketchMesh(extrudeZ(roundedRectShape(0.44, 0.15, 0.05), 0.01, 8), matDarkCharcoal);
+    clusterBack.position.set(DRIVER_X, 0.75, 0.46);
+    interiorGroup.add(clusterBack);
+
+    const buildGauge = (r: number, needleAngle: number) => {
+      const gauge = new THREE.Group();
+      gauge.add(new THREE.Mesh(new THREE.CircleGeometry(r, 32), matDarkCharcoal));
+      const bezel = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0045, 6, 32), matPorscheBody);
+      gauge.add(bezel);
+
+      const tickPositions: number[] = [];
+      const ticks = 11;
+      for (let t = 0; t < ticks; t++) {
+        const a = Math.PI * 1.25 - (t / (ticks - 1)) * Math.PI * 1.5;
+        const inner = t % 2 === 0 ? 0.72 : 0.8;
+        tickPositions.push(Math.cos(a) * r * inner, Math.sin(a) * r * inner, 0.001);
+        tickPositions.push(Math.cos(a) * r * 0.9, Math.sin(a) * r * 0.9, 0.001);
+      }
+      const tickGeo = new THREE.BufferGeometry();
+      tickGeo.setAttribute('position', new THREE.Float32BufferAttribute(tickPositions, 3));
+      gauge.add(new THREE.LineSegments(tickGeo, lineTickMat));
+
+      const needle = new THREE.Mesh(new THREE.BoxGeometry(0.003, r * 0.8, 0.002), matRedTaillight);
+      needle.geometry.translate(0, r * 0.4, 0.002);
+      needle.rotation.z = needleAngle;
+      gauge.add(needle);
+      const hub = new THREE.Mesh(new THREE.CircleGeometry(r * 0.12, 12), matPorscheBody);
+      hub.position.z = 0.004;
+      gauge.add(hub);
+
+      gauge.rotation.y = Math.PI;
+      return gauge;
+    };
+
+    [
+      { dx: 0, dy: 0.0, r: 0.052, needle: -0.6 },
+      { dx: -0.095, dy: -0.005, r: 0.041, needle: 0.4 },
+      { dx: 0.095, dy: -0.005, r: 0.041, needle: -0.2 },
+      { dx: -0.165, dy: -0.015, r: 0.03, needle: 0.9 },
+      { dx: 0.165, dy: -0.015, r: 0.03, needle: -0.9 },
+    ].forEach(({ dx, dy, r, needle }) => {
+      const gauge = buildGauge(r, needle);
+      // Gauges face the driver (-z), so local +x points toward world -x.
+      gauge.position.set(DRIVER_X + dx, 0.75 + dy, 0.452);
+      interiorGroup.add(gauge);
+    });
+
+    // Steering column and three-spoke sport wheel.
+    const wheelCenter = new THREE.Vector3(DRIVER_X, 0.70, 0.36);
+    const columnBase = new THREE.Vector3(DRIVER_X, 0.62, 0.52);
+    const column = createSketchMesh(
+      new THREE.CylinderGeometry(0.03, 0.036, columnBase.distanceTo(wheelCenter), 16),
+      matDarkCharcoal,
+      30,
+    );
+    column.position.copy(columnBase).lerp(wheelCenter, 0.5);
+    column.quaternion.setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3().subVectors(wheelCenter, columnBase).normalize(),
+    );
+    interiorGroup.add(column);
+
+    const wheel = new THREE.Group();
+    wheel.position.copy(wheelCenter);
+    wheel.rotation.x = 0.35;
+    wheel.add(createSketchMesh(new THREE.TorusGeometry(0.17, 0.02, 12, 48), matDarkCharcoal, 30));
+    const topMarker = createSketchMesh(new THREE.BoxGeometry(0.014, 0.044, 0.044), matYellowCaliper);
+    topMarker.position.y = 0.17;
+    wheel.add(topMarker);
+    const wheelHub = createSketchMesh(extrudeZ(roundedRectShape(0.13, 0.10, 0.035), 0.05, 8), matMachinedAlloy);
+    wheelHub.position.z = -0.01;
+    wheel.add(wheelHub);
+    const wheelCrest = new THREE.Mesh(new THREE.CircleGeometry(0.018, 20), matYellowCaliper);
+    wheelCrest.position.z = -0.0365;
+    wheelCrest.rotation.y = Math.PI;
+    wheel.add(wheelCrest);
+    [-1, 1].forEach((sx) => {
+      const spoke = createSketchMesh(new THREE.BoxGeometry(0.11, 0.035, 0.02), matMachinedAlloy);
+      spoke.position.set(sx * 0.11, -0.005, 0);
+      wheel.add(spoke);
+      const paddle = createSketchMesh(new THREE.BoxGeometry(0.05, 0.08, 0.006), matMachinedAlloy);
+      paddle.position.set(sx * 0.12, 0.03, 0.03);
+      wheel.add(paddle);
+    });
+    const lowerSpoke = createSketchMesh(new THREE.BoxGeometry(0.035, 0.10, 0.02), matMachinedAlloy);
+    lowerSpoke.position.set(0, -0.11, 0);
+    wheel.add(lowerSpoke);
+    interiorGroup.add(wheel);
+
+    // Centre stack: twin vents, touchscreen and climate buttons.
+    [-0.065, 0.065].forEach((vx) => {
+      const vent = createSketchMesh(extrudeZ(roundedRectShape(0.11, 0.04, 0.01), 0.01, 6), matDarkCharcoal);
+      vent.position.set(vx, 0.725, 0.466);
+      interiorGroup.add(vent);
+      for (let sl = 0; sl < 3; sl++) {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.003, 0.004), matPorscheBody);
+        slat.position.set(vx, 0.713 + sl * 0.012, 0.46);
+        interiorGroup.add(slat);
+      }
+    });
+
+    const screen = createSketchMesh(extrudeZ(roundedRectShape(0.24, 0.11, 0.012), 0.012, 6), matPorscheGlass);
+    screen.position.set(0, 0.635, 0.466);
+    screen.rotation.x = 0.08;
+    interiorGroup.add(screen);
+
+    // Climate buttons on the console's upper slope, angled toward the occupants.
+    for (let b = 0; b < 5; b++) {
+      const button = createSketchMesh(new THREE.BoxGeometry(0.028, 0.008, 0.016), matPorscheBody);
+      button.position.set(-0.08 + b * 0.04, 0.558, 0.42);
+      button.rotation.x = -0.46;
+      interiorGroup.add(button);
+    }
+
+    // Round side vents at each end of the dash.
+    [-0.60, 0.60].forEach((vx) => {
+      const sideVent = new THREE.Group();
+      sideVent.position.set(vx, 0.72, 0.465);
+      sideVent.rotation.y = Math.PI;
+      sideVent.add(new THREE.Mesh(new THREE.CircleGeometry(0.035, 24), matDarkCharcoal));
+      sideVent.add(new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.005, 6, 24), matMachinedAlloy));
+      [0, Math.PI / 2].forEach((a) => {
+        const slat = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.004, 0.004), matPorscheBody);
+        slat.rotation.z = a;
+        slat.position.z = 0.003;
+        sideVent.add(slat);
+      });
+      interiorGroup.add(sideVent);
+    });
+
+    // Centre console rising from the tunnel into the dash, with the PDK selector.
+    const consoleProfile = new THREE.Shape();
+    consoleProfile.moveTo(-0.18, 0.40);
+    consoleProfile.lineTo(0.34, 0.40);
+    consoleProfile.lineTo(0.50, 0.56);
+    consoleProfile.lineTo(0.48, 0.585);
+    consoleProfile.lineTo(0.32, 0.505);
+    consoleProfile.quadraticCurveTo(0.10, 0.475, -0.18, 0.47);
+    consoleProfile.closePath();
+    interiorGroup.add(createSketchMesh(extrudeAcrossX(consoleProfile, 0.22), matDarkCharcoal));
+
+    const selectorBoot = createSketchMesh(new THREE.CylinderGeometry(0.032, 0.036, 0.016, 20), matMachinedAlloy, 30);
+    selectorBoot.position.set(0, 0.488, 0.08);
+    interiorGroup.add(selectorBoot);
+    const selectorStem = createSketchMesh(new THREE.CylinderGeometry(0.008, 0.008, 0.05, 10), matMachinedAlloy, 30);
+    selectorStem.position.set(0, 0.515, 0.08);
+    interiorGroup.add(selectorStem);
+    const selectorKnob = createSketchMesh(new THREE.SphereGeometry(0.022, 16, 12), matPorscheBody, 30);
+    selectorKnob.scale.set(0.9, 1.15, 1.3);
+    selectorKnob.position.set(0, 0.55, 0.08);
+    interiorGroup.add(selectorKnob);
+
+    // Two-pedal PDK footwell: brake and throttle.
+    [
+      { x: DRIVER_X - 0.04, w: 0.09 },
+      { x: DRIVER_X + 0.09, w: 0.06 },
+    ].forEach(({ x, w }) => {
+      const arm = createSketchMesh(new THREE.BoxGeometry(0.014, 0.24, 0.014), matMachinedAlloy);
+      arm.position.set(x, 0.44, 0.64);
+      arm.rotation.x = 0.18;
+      interiorGroup.add(arm);
+      const pad = createSketchMesh(new THREE.BoxGeometry(w, 0.055, 0.012), matPorscheBody);
+      pad.position.set(x, 0.32, 0.62);
+      pad.rotation.x = -0.45;
+      interiorGroup.add(pad);
+    });
   }
 
   registerExplodable(interiorGroup, new THREE.Vector3(0, 0.95, 0.10), new THREE.Euler(0, 0, 0), 'cooling');
@@ -1826,28 +2164,6 @@ export function createPorscheScene(
     const d = bankDir(s);
     const n = bankInner(s);
     return new THREE.Vector3(d.x * along + n.x * inward, CRANK_Y + d.y * along + n.y * inward, z);
-  };
-
-  const extrudeZ = (shape: THREE.Shape, depth: number, curveSegments = 12) => {
-    const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false, curveSegments });
-    geo.translate(0, 0, -depth / 2);
-    return geo;
-  };
-
-  const roundedRectShape = (w: number, h: number, r: number) => {
-    const shape = new THREE.Shape();
-    const x = -w / 2;
-    const y = -h / 2;
-    shape.moveTo(x + r, y);
-    shape.lineTo(x + w - r, y);
-    shape.quadraticCurveTo(x + w, y, x + w, y + r);
-    shape.lineTo(x + w, y + h - r);
-    shape.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    shape.lineTo(x + r, y + h);
-    shape.quadraticCurveTo(x, y + h, x, y + h - r);
-    shape.lineTo(x, y + r);
-    shape.quadraticCurveTo(x, y, x + r, y);
-    return shape;
   };
 
   const gearGeometry = (rOuter: number, rRoot: number, teeth: number, depth: number, holeR = 0) => {

@@ -54,12 +54,13 @@ export const createInitialScrollState = (): PorscheScrollState => ({
   coolingProgress: 0,
   engineLiftProgress: 0,
   enginePartsProgress: 0,
-  camAngle: Math.PI * 0.5,
-  camHeight: 0.78,
-  camRadius: 7.4,
+  // Front three-quarter view: camera ahead of the car (+z) and off to its right side (+x).
+  camAngle: 0.6,
+  camHeight: 1.3,
+  camRadius: 6.9,
   lookX: 0,
-  lookY: 0.58,
-  lookZ: 0.02,
+  lookY: 0.52,
+  lookZ: 0.15,
 });
 
 export interface PorscheScene {
@@ -76,6 +77,13 @@ const BASE_FOV = 32;
 // same horizontal framing (and therefore the same composition) is preserved.
 const REFERENCE_ASPECT = 16 / 9;
 const FRAME_MS = 1000 / 60;
+
+export interface PorscheSceneOptions {
+  /** Camera zoom multiplier; >1 enlarges the car. */
+  zoom?: number;
+  /** Horizontal screen position of the scene centre, 0 (left edge) to 1 (right edge). */
+  centerX?: number;
+}
 
 const graphiteVertexShader = `
   varying vec3 vNormal;
@@ -453,7 +461,10 @@ function buildRingStripGeometry(positions: number[], rings: number, segs: number
   return geo;
 }
 
-export function createPorscheScene(canvas: HTMLCanvasElement): PorscheScene {
+export function createPorscheScene(
+  canvas: HTMLCanvasElement,
+  { zoom = 1, centerX = 0.5 }: PorscheSceneOptions = {},
+): PorscheScene {
   // ==========================================================================
   // 1. SCENE, CAMERA & RENDERER
   // ==========================================================================
@@ -461,6 +472,7 @@ export function createPorscheScene(canvas: HTMLCanvasElement): PorscheScene {
   scene.fog = new THREE.FogExp2(0xffffff, 0.012);
 
   const camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 180);
+  camera.zoom = zoom;
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -2023,6 +2035,11 @@ export function createPorscheScene(canvas: HTMLCanvasElement): PorscheScene {
         : THREE.MathUtils.radToDeg(
           2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(BASE_FOV / 2)) * (REFERENCE_ASPECT / aspect)),
         );
+      if (centerX === 0.5) {
+        camera.clearViewOffset();
+      } else {
+        camera.setViewOffset(width, height, (0.5 - centerX) * width, 0, width, height);
+      }
       camera.updateProjectionMatrix();
       renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       renderer.setSize(width, height, false);

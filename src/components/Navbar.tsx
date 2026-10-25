@@ -1,5 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Menu, X, PhoneCall } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
+import {
+  Award,
+  Building2,
+  Camera,
+  Languages,
+  LucideIcon,
+  Menu,
+  Package,
+  PhoneCall,
+  Workflow,
+  X,
+} from 'lucide-react';
 import { Language, NavItem } from '../types';
 
 interface NavbarProps {
@@ -9,6 +21,53 @@ interface NavbarProps {
   logoSrc: string;
   navItems: NavItem[];
   ctaText: string;
+}
+
+const NAV_ICONS: Record<string, LucideIcon> = {
+  about: Building2,
+  'factory-tour': Camera,
+  'value-chain': Workflow,
+  products: Package,
+  brands: Award,
+  contact: PhoneCall,
+};
+
+const LANGUAGES: { code: Language; short: string; label: string }[] = [
+  { code: 'fa', short: 'فا', label: 'فارسی' },
+  { code: 'en', short: 'EN', label: 'English' },
+];
+
+const SPRING = { type: 'spring', stiffness: 420, damping: 34 } as const;
+
+/** Id of the section currently crossing the middle band of the viewport. */
+function useActiveSection(ids: string[]) {
+  const [active, setActive] = useState<string | null>(null);
+  const key = ids.join('|');
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) setActive(entry.target.id);
+        });
+      },
+      { rootMargin: '-45% 0px -50% 0px' },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    const clearAtTop = () => {
+      if (window.scrollY < window.innerHeight * 0.5) setActive(null);
+    };
+    window.addEventListener('scroll', clearAtTop, { passive: true });
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', clearAtTop);
+    };
+  }, [key]);
+
+  return active;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,147 +80,188 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const activeId = useActiveSection(navItems.map((item) => item.id));
 
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 20);
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMobileMenuOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [mobileMenuOpen]);
+
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-sm shadow-slate-900/5 py-2.5'
-          : 'bg-white/80 backdrop-blur-sm border-b border-slate-100 py-3.5'
-      }`}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between gap-4">
-          
-          {/* ZONE 1: Official Brand Logo & Name */}
+    <header className="fixed top-0 inset-x-0 z-50 px-3 sm:px-6 lg:px-8 pt-3 sm:pt-4">
+      <div
+        className={`max-w-7xl mx-auto rounded-full border ps-2 pe-2 sm:pe-2.5 py-2 transition-all duration-300 ${
+          isScrolled
+            ? 'bg-white/85 backdrop-blur-xl border-slate-200/80 shadow-lg shadow-slate-900/[0.06]'
+            : 'bg-white/70 backdrop-blur-md border-white/80 shadow-sm shadow-slate-900/[0.03]'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-3">
+          {/* Brand */}
           <a
             href="#"
-            className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded"
+            className="flex items-center h-11 ps-1.5 pe-3 rounded-full bg-white border border-slate-200/70 shadow-xs hover:border-blue-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
             aria-label={brandMark}
           >
-            <div className="h-10 sm:h-11 flex items-center justify-center p-1 bg-white rounded-lg border border-slate-200 shadow-sm shrink-0">
-              <img
-                src={logoSrc}
-                alt="Arian Khodro AKK Logo"
-                className="h-full w-auto object-contain max-h-8"
-                onError={(e) => {
-                  // Fallback to text monogram if image loading is interrupted
-                  const target = e.currentTarget;
-                  target.style.display = 'none';
-                  if (target.parentElement) {
-                    target.parentElement.innerHTML = '<span class="font-extrabold text-blue-700 font-mono text-sm px-1.5">AKK</span>';
-                  }
-                }}
-              />
-            </div>
+            <img
+              src={logoSrc}
+              alt="Arian Khodro AKK Logo"
+              className="h-7 w-auto object-contain"
+              onError={(e) => {
+                const target = e.currentTarget;
+                target.style.display = 'none';
+                if (target.parentElement) {
+                  target.parentElement.innerHTML =
+                    '<span class="font-bold text-blue-700 text-sm px-2">AKK</span>';
+                }
+              }}
+            />
           </a>
 
-          {/* ZONE 2: Clean Text Navigation Links */}
+          {/* Desktop links */}
           <nav
-            className="hidden lg:flex items-center gap-5 xl:gap-7"
+            className="hidden lg:flex items-center gap-0.5 p-1 rounded-full bg-slate-100/70 border border-slate-200/60"
             aria-label="Main Navigation"
           >
-            {navItems.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                className="text-xs xl:text-sm font-semibold text-slate-600 hover:text-blue-700 transition-colors relative py-1 hover:after:w-full after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-blue-600 after:w-0 after:transition-all after:duration-200"
-              >
-                {item.label}
-              </a>
-            ))}
+            {navItems.map((item) => {
+              const Icon = NAV_ICONS[item.id];
+              const isActive = activeId === item.id;
+              return (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  aria-current={isActive ? 'location' : undefined}
+                  className={`relative flex items-center gap-1.5 h-9 px-3.5 xl:px-4 rounded-full text-[13px] font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
+                    isActive ? 'text-blue-700' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-pill"
+                      transition={SPRING}
+                      className="absolute inset-0 rounded-full bg-white shadow-sm shadow-slate-900/10 ring-1 ring-slate-200/70"
+                    />
+                  )}
+                  {Icon && <Icon className="relative w-4 h-4 opacity-80" strokeWidth={1.75} />}
+                  <span className="relative whitespace-nowrap">{item.label}</span>
+                </a>
+              );
+            })}
           </nav>
 
-          {/* ZONE 3: Language Switcher & Contact Button */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Segmented Minimal Language Switcher */}
+          {/* Language, contact, menu */}
+          <div className="flex items-center gap-2">
             <div
-              className="flex items-center bg-slate-100 border border-slate-200 rounded-lg p-0.5"
+              className="flex items-center h-11 p-1 gap-0.5 rounded-full bg-slate-100/80 border border-slate-200/70"
               role="group"
               aria-label="Language Selector"
             >
-              <button
-                type="button"
-                onClick={() => onLanguageChange('fa')}
-                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all duration-200 ${
-                  lang === 'fa'
-                    ? 'bg-blue-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                aria-pressed={lang === 'fa'}
-              >
-                فارسی
-              </button>
-              <button
-                type="button"
-                onClick={() => onLanguageChange('en')}
-                className={`px-2.5 py-1 text-xs font-bold rounded-md transition-all duration-200 ${
-                  lang === 'en'
-                    ? 'bg-blue-700 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-                aria-pressed={lang === 'en'}
-              >
-                EN
-              </button>
+              <span className="hidden sm:grid place-items-center w-8 h-8 text-slate-500" aria-hidden="true">
+                <Languages className="w-4 h-4" strokeWidth={1.75} />
+              </span>
+              {LANGUAGES.map((option) => {
+                const isActive = lang === option.code;
+                return (
+                  <button
+                    key={option.code}
+                    type="button"
+                    onClick={() => onLanguageChange(option.code)}
+                    aria-pressed={isActive}
+                    aria-label={option.label}
+                    title={option.label}
+                    className={`relative grid place-items-center w-9 h-9 rounded-full text-xs font-semibold transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 ${
+                      isActive ? 'text-white' : 'text-slate-500 hover:text-slate-900'
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="lang-active-pill"
+                        transition={SPRING}
+                        className="absolute inset-0 rounded-full bg-blue-700 shadow-md shadow-blue-700/25"
+                      />
+                    )}
+                    <span className="relative">{option.short}</span>
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Primary Action Button */}
             <a
               href="#contact"
-              className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 active:bg-blue-900 rounded-lg shadow-sm shadow-blue-700/20 transition-all duration-200 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="hidden sm:inline-flex items-center gap-2 h-11 ps-1.5 pe-4 rounded-full text-[13px] font-semibold text-white bg-blue-700 hover:bg-blue-800 active:scale-[0.97] shadow-lg shadow-blue-700/25 transition-all duration-200 whitespace-nowrap focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
-              <PhoneCall className="w-3.5 h-3.5" />
+              <span className="grid place-items-center w-8 h-8 rounded-full bg-white/15">
+                <PhoneCall className="w-4 h-4" strokeWidth={1.75} />
+              </span>
               <span>{ctaText}</span>
             </a>
 
-            {/* Mobile Hamburger Button */}
             <button
               type="button"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-2 text-slate-700 hover:text-slate-950 bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+              onClick={() => setMobileMenuOpen((open) => !open)}
+              className="lg:hidden grid place-items-center w-11 h-11 rounded-full text-slate-700 bg-slate-100/80 hover:bg-slate-200/80 border border-slate-200/70 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
               aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
             >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" strokeWidth={1.75} /> : <Menu className="w-5 h-5" strokeWidth={1.75} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Drawer */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-b border-slate-200 px-4 pt-4 pb-6 mt-2.5 space-y-2 shadow-xl animate-in fade-in duration-200">
-          <nav className="flex flex-col space-y-1">
-            {navItems.map((item) => (
-              <a
-                key={item.id}
-                href={`#${item.id}`}
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 rounded-md text-sm font-semibold text-slate-700 hover:text-blue-700 hover:bg-slate-50 transition-colors"
-              >
-                {item.label}
-              </a>
-            ))}
+        <motion.div
+          initial={{ opacity: 0, y: -8, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          className="lg:hidden max-w-7xl mx-auto mt-2 p-3 rounded-[2rem] bg-white/95 backdrop-blur-2xl border border-slate-200/80 shadow-2xl shadow-slate-900/10"
+        >
+          <nav className="grid grid-cols-2 gap-2" aria-label="Mobile Navigation">
+            {navItems.map((item) => {
+              const Icon = NAV_ICONS[item.id];
+              const isActive = activeId === item.id;
+              return (
+                <a
+                  key={item.id}
+                  href={`#${item.id}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 p-2 pe-4 rounded-full text-sm font-medium transition-colors ${
+                    isActive ? 'bg-blue-50 text-blue-800' : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  {Icon && (
+                    <span
+                      className={`grid place-items-center w-9 h-9 rounded-full shrink-0 ${
+                        isActive ? 'bg-blue-700 text-white' : 'bg-white text-blue-700 border border-slate-200/70'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" strokeWidth={1.75} />
+                    </span>
+                  )}
+                  <span className="truncate">{item.label}</span>
+                </a>
+              );
+            })}
           </nav>
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-            <a
-              href="#contact"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full text-center px-4 py-2.5 text-xs font-bold text-white bg-blue-700 hover:bg-blue-800 rounded-lg shadow transition-colors"
-            >
-              {ctaText}
-            </a>
-          </div>
-        </div>
+          <a
+            href="#contact"
+            onClick={() => setMobileMenuOpen(false)}
+            className="mt-3 flex items-center justify-center gap-2 h-12 rounded-full text-sm font-semibold text-white bg-blue-700 hover:bg-blue-800 shadow-lg shadow-blue-700/20 transition-colors"
+          >
+            <PhoneCall className="w-4 h-4" strokeWidth={1.75} />
+            <span>{ctaText}</span>
+          </a>
+        </motion.div>
       )}
     </header>
   );

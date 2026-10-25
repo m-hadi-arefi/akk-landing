@@ -1,18 +1,18 @@
 import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { createInitialScrollState, createPorscheScene, PorscheScene } from './createPorscheScene';
+import { createInitialScrollState, createPorscheScene, PorscheScene, PorscheSceneOptions } from './createPorscheScene';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export interface PorscheCanvasProps {
+export interface PorscheCanvasProps extends PorscheSceneOptions {
   triggerRef: React.RefObject<HTMLElement | null>;
   start: string;
   end: string;
   refreshKey?: unknown;
 }
 
-const PorscheCanvas: React.FC<PorscheCanvasProps> = ({ triggerRef, start, end, refreshKey }) => {
+const PorscheCanvas: React.FC<PorscheCanvasProps> = ({ triggerRef, start, end, refreshKey, zoom, centerX }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<PorscheScene | null>(null);
   useEffect(() => {
@@ -27,7 +27,7 @@ const PorscheCanvas: React.FC<PorscheCanvasProps> = ({ triggerRef, start, end, r
 
     let scene: PorscheScene;
     try {
-      scene = createPorscheScene(canvas);
+      scene = createPorscheScene(canvas, { zoom, centerX });
     } catch (error) {
       console.error('PorscheCanvas: WebGL initialisation failed', error);
       canvas.remove();
@@ -113,7 +113,7 @@ const PorscheCanvas: React.FC<PorscheCanvasProps> = ({ triggerRef, start, end, r
         },
       });
 
-      // Side profile -> front-top three-quarter view
+      // Front three-quarter view -> raised front-top three-quarter view
       tl.to(state, {
         camAngle: 0.52,
         camHeight: 1.75,

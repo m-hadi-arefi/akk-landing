@@ -70,6 +70,15 @@ export const Hero: React.FC<HeroProps> = ({
   const mobileTrackRef = useRef<HTMLDivElement>(null);
   const stickyTop = useStickyTop(stickyRef);
 
+  const handleSpotlightMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty('--spot-x', `${e.clientX - rect.left}px`);
+    el.style.setProperty('--spot-y', `${e.clientY - rect.top}px`);
+    el.style.setProperty('--spot-opacity', '1');
+  };
+
   return (
     // Desktop: the section is a 460vh scroll runway with a sticky viewport, so the
     // exploded-view timeline scrubs while the hero stays on screen.
@@ -81,13 +90,17 @@ export const Hero: React.FC<HeroProps> = ({
         ref={stickyRef}
         className="relative overflow-clip pt-24 sm:pt-28 pb-16 lg:sticky lg:min-h-screen lg:flex lg:items-center"
         style={isDesktop ? { top: stickyTop } : undefined}
+        onPointerMove={handleSpotlightMove}
+        onPointerLeave={(e) => e.currentTarget.style.setProperty('--spot-opacity', '0')}
       >
-        {/* Background Architectural Grid Pattern */}
-        <div 
-          className="absolute inset-0 opacity-[0.035] pointer-events-none"
+        {/* Cursor-following spotlight, positioned via CSS variables set in onPointerMove */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none transition-opacity duration-500"
           style={{
-            backgroundImage: `linear-gradient(to right, #0f172a 1px, transparent 1px), linear-gradient(to bottom, #0f172a 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
+            opacity: 'var(--spot-opacity, 0)',
+            background:
+              'radial-gradient(600px circle at var(--spot-x, 50%) var(--spot-y, 50%), rgba(59, 130, 246, 0.16), rgba(99, 102, 241, 0.07) 40%, transparent 70%)',
           }}
         />
 

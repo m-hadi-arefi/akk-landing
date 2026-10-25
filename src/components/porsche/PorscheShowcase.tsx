@@ -15,7 +15,7 @@ const VARIANTS = {
   inline: {
     className: 'relative aspect-[4/3]',
     mask: { maskImage: INLINE_MASK, WebkitMaskImage: INLINE_MASK },
-    zoom: 1.2,
+    zoom: 1.38,
     centerX: 0.5,
   },
   backdrop: {
@@ -26,7 +26,7 @@ const VARIANTS = {
       maskComposite: 'intersect',
       WebkitMaskComposite: 'source-in',
     },
-    zoom: 0.78,
+    zoom: 0.9,
     centerX: 0.3,
   },
 } as const;

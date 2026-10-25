@@ -46,7 +46,11 @@ export interface PorscheScrollState {
   lookX: number;
   lookY: number;
   lookZ: number;
+  lightYaw: number;
 }
+
+const INITIAL_CAM_ANGLE = 0.6;
+const ORIGINAL_START_CAM_ANGLE = Math.PI * 0.5;
 
 export const createInitialScrollState = (): PorscheScrollState => ({
   exteriorProgress: 0,
@@ -55,12 +59,15 @@ export const createInitialScrollState = (): PorscheScrollState => ({
   engineLiftProgress: 0,
   enginePartsProgress: 0,
   // Front three-quarter view: camera ahead of the car (+z) and off to its right side (+x).
-  camAngle: 0.6,
+  camAngle: INITIAL_CAM_ANGLE,
   camHeight: 1.3,
   camRadius: 6.9,
   lookX: 0,
   lookY: 0.52,
   lookZ: 0.15,
+  // The light rig is fixed in world space and the original starts in side profile; rotating it by the
+  // camera offset lights the body exactly as the original's opening frame (same pencil hatching).
+  lightYaw: INITIAL_CAM_ANGLE - ORIGINAL_START_CAM_ANGLE,
 });
 
 export interface PorscheScene {
@@ -114,6 +121,10 @@ const graphiteFragmentShader = `
   uniform float uHatchScale;
   uniform float uGlassMode;
   uniform float uOpacity;
+  uniform vec2 uResolution;
+  uniform float uPixelRatio;
+  uniform float uOverlayCenterX;
+  uniform float uLightYaw;
 
   varying vec3 vNormal;
   varying vec3 vWorldNormal;
@@ -157,9 +168,12 @@ const graphiteFragmentShader = `
       WN = -WN;
     }
 
-    vec3 L_top   = normalize(vec3(0.25, 0.92, 0.28));
-    vec3 L_front = normalize(vec3(0.45, 0.40, 0.78));
-    vec3 L_back  = normalize(vec3(-0.55, 0.45, -0.70));
+    float ly = sin(uLightYaw);
+    float lc = cos(uLightYaw);
+    mat3 lightYaw = mat3(lc, 0.0, -ly, 0.0, 1.0, 0.0, ly, 0.0, lc);
+    vec3 L_top   = lightYaw * normalize(vec3(0.25, 0.92, 0.28));
+    vec3 L_front = lightYaw * normalize(vec3(0.45, 0.40, 0.78));
+    vec3 L_back  = lightYaw * normalize(vec3(-0.55, 0.45, -0.70));
 
     float dTop   = max(dot(WN, L_top), 0.0);
     float dFront = max(dot(WN, L_front), 0.0) * 0.55;
@@ -179,10 +193,13 @@ const graphiteFragmentShader = `
     vec2 worldP = (vWorldPos.zy * 1.15 + vWorldPos.xy * 0.85) * 15.0 * uHatchScale;
     vec2 strokeCoord = mix(screenP, worldP, 0.40);
 
+    // Every layer shares one stroke direction, and the dense layers use exactly twice the base
+    // frequency so their lines coincide; crossing angles or near-equal frequencies produce a
+    // diamond / moire lattice instead of pencil shading.
     float h2H = pencilStroke(strokeCoord, 0.58, 1.10, 0.32);
-    float hHB = pencilStroke(strokeCoord, -0.58, 1.18, 0.38);
-    float h2B = pencilStroke(strokeCoord, 0.15, 1.35, 0.44);
-    float h6B = pencilStroke(strokeCoord, 1.38, 1.60, 0.54);
+    float hHB = pencilStroke(strokeCoord, 0.58, 1.10, 0.50);
+    float h2B = pencilStroke(strokeCoord, 0.58, 2.20, 0.44);
+    float h6B = pencilStroke(strokeCoord, 0.58, 2.20, 0.62);
 
     float hatchMask = 1.0;
 
@@ -207,7 +224,7 @@ const graphiteFragmentShader = `
       float glassStreak = smoothstep(0.62, 0.96, sin((vWorldPos.x * 4.2 + vWorldPos.z * 3.1 + vWorldPos.y * 5.2) * 2.8));
       float rimSheen = pow(1.0 - ndotv, 2.4) * 0.18;
       lum = clamp(0.15 + spec * 0.55 + glassStreak * 0.22 + rimSheen, 0.12, 0.54);
-      hatchMask = mix(hatchMask, h2B * hHB, 0.55);
+      hatchMask = mix(hatchMask, h2B, 0.55);
     }
     else if (uGlassMode >= 1.5) {
       float glassStreak = smoothstep(0.45, 0.85, sin((vWorldPos.x * 5.5 + vWorldPos.z * 3.8 + vWorldPos.y * 4.0) * 3.2));
@@ -220,6 +237,20 @@ const graphiteFragmentShader = `
 
     vec3 baseSketch = mix(uGraphiteColor, uPaperColor, finalShade);
     vec3 finalColor = mix(baseSketch, uAccentColor * (0.45 + 0.55 * finalShade), uAccentStrength);
+
+    // Original page's .paper-texture-overlay (vignette over 26px drafting lines, opacity 0.38,
+    // mix-blend-mode: multiply), applied to the car's pixels only so the page background stays untouched.
+    vec2 overlayCenter = vec2(uOverlayCenterX, 0.5) * uResolution;
+    float farCorner = length(max(overlayCenter, uResolution - overlayCenter));
+    float vignetteA = 0.16 * clamp((length(gl_FragCoord.xy - overlayCenter) / farCorner - 0.6) / 0.4, 0.0, 1.0);
+    vec2 cssPx = mod(floor(gl_FragCoord.xy / uPixelRatio), 26.0);
+    float lineA = 1.0 - (1.0 - 0.02 * step(cssPx.x, 0.5)) * (1.0 - 0.02 * step(cssPx.y, 0.5));
+    float overlayA = vignetteA + lineA * (1.0 - vignetteA);
+    vec3 overlayColor = overlayA > 0.0
+      ? (vec3(36.0, 34.0, 29.0) / 255.0 * vignetteA + vec3(32.0, 30.0, 26.0) / 255.0 * lineA * (1.0 - vignetteA)) / overlayA
+      : vec3(1.0);
+    float blendA = 0.38 * overlayA;
+    finalColor *= (1.0 - blendA) + blendA * overlayColor;
 
     gl_FragColor = vec4(finalColor, uOpacity);
   }
@@ -488,6 +519,14 @@ export function createPorscheScene(
   // ==========================================================================
   // 2. GRAPHITE PENCIL MATERIALS
   // ==========================================================================
+  // Shared by reference across every graphite material, so one write updates them all at once.
+  const sharedGraphiteUniforms = {
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uPixelRatio: { value: 1 },
+    uOverlayCenterX: { value: centerX },
+    uLightYaw: { value: 0 },
+  };
+
   function createGraphiteMat(options: GraphiteMatOptions = {}) {
     return new THREE.ShaderMaterial({
       vertexShader: graphiteVertexShader,
@@ -502,6 +541,7 @@ export function createPorscheScene(
         uHatchScale: { value: options.hatchScale ?? 1.0 },
         uGlassMode: { value: options.glassMode ?? 0.0 },
         uOpacity: { value: options.opacity ?? 1.0 },
+        ...sharedGraphiteUniforms,
       },
       transparent: (options.opacity ?? 1.0) < 1.0,
       side: THREE.DoubleSide,
@@ -512,6 +552,16 @@ export function createPorscheScene(
   }
 
   const matPorscheBody = createGraphiteMat({ toneBias: -0.06, shadeFloor: 0.58, hatchScale: 0.92 });
+
+  // Exterior paint in the site's brand blue (Tailwind blue-700), laid over the graphite hatching
+  // the same way the caliper/taillight accents are.
+  const matBrandPaint = createGraphiteMat({
+    toneBias: -0.06,
+    shadeFloor: 0.58,
+    hatchScale: 0.92,
+    accentHex: 0x1d4ed8,
+    accentStrength: 0.82,
+  });
 
   const matPorscheGlass = createGraphiteMat({
     graphiteHex: 0x141518,
@@ -768,7 +818,7 @@ export function createPorscheScene(
     unifiedHoodGeo.setAttribute('uv', new THREE.Float32BufferAttribute(hoodUvs, 2));
     unifiedHoodGeo.setIndex(hoodIndices);
     ensureOutwardNormals(unifiedHoodGeo);
-    hoodGroup.add(new THREE.Mesh(unifiedHoodGeo, matPorscheBody));
+    hoodGroup.add(new THREE.Mesh(unifiedHoodGeo, matBrandPaint));
   }
 
   [0.002, 0.004].forEach((yLift, idx) => {
@@ -837,7 +887,7 @@ export function createPorscheScene(
     carRoot.add(frontFenderGroup);
 
     const fenderGeo = buildLoftedPorschePatch(0.80, 2.06, 0.0, 0.68, 32, 20, side);
-    frontFenderGroup.add(new THREE.Mesh(fenderGeo, matPorscheBody));
+    frontFenderGroup.add(new THREE.Mesh(fenderGeo, matBrandPaint));
     frontFenderGroup.add(buildPatchBoundaryLine(0.80, 2.06, 0.0, 0.68, 22, side, lineDarkMat));
 
     const markerPt = evalPorsche911Point(1.89, 0.31, side);
@@ -848,7 +898,7 @@ export function createPorscheScene(
 
     if (side === -1) {
       const capPt = evalPorsche911Point(1.18, 0.54, -1);
-      const fuelCap = createSketchMesh(new THREE.CylinderGeometry(0.066, 0.066, 0.008, 24), matPorscheBody);
+      const fuelCap = createSketchMesh(new THREE.CylinderGeometry(0.066, 0.066, 0.008, 24), matBrandPaint);
       fuelCap.position.copy(capPt);
       fuelCap.rotation.z = -0.58;
       frontFenderGroup.add(fuelCap);
@@ -977,7 +1027,7 @@ export function createPorscheScene(
       }
       return pt;
     });
-    frontBumperGroup.add(new THREE.Mesh(bumperGeo, matPorscheBody));
+    frontBumperGroup.add(new THREE.Mesh(bumperGeo, matBrandPaint));
     frontBumperGroup.add(buildPatchBoundaryLine(2.01, 2.25, 0.0, 0.68, 14, side, lineDarkMat));
 
     const sideIntakeGroup = new THREE.Group();
@@ -1043,7 +1093,7 @@ export function createPorscheScene(
     carRoot.add(doorGroup);
 
     const doorGeo = buildLoftedPorschePatch(-0.48, 0.80, 0.05, 0.48, 22, 14, side);
-    doorGroup.add(new THREE.Mesh(doorGeo, matPorscheBody));
+    doorGroup.add(new THREE.Mesh(doorGeo, matBrandPaint));
     doorGroup.add(buildPatchBoundaryLine(-0.48, 0.80, 0.05, 0.48, 16, side, lineDarkMat));
 
     const creasePts: THREE.Vector3[] = [];
@@ -1071,7 +1121,7 @@ export function createPorscheScene(
 
     const housingGeo = new THREE.SphereGeometry(0.085, 16, 14);
     housingGeo.scale(1.35, 0.72, 0.95);
-    const mirrorHousing = createSketchMesh(housingGeo, matPorscheBody);
+    const mirrorHousing = createSketchMesh(housingGeo, matBrandPaint);
     mirrorHousing.position.set(side * 0.11, 0.055, -0.02);
     mirrorHousing.rotation.y = -side * 0.22;
     mirrorAssy.add(mirrorHousing);
@@ -1098,7 +1148,7 @@ export function createPorscheScene(
     carRoot.add(rearQuarterGroup);
 
     const quarterGeo = buildLoftedPorschePatch(-1.94, -0.48, 0.0, 0.68, 28, 16, side);
-    rearQuarterGroup.add(new THREE.Mesh(quarterGeo, matPorscheBody));
+    rearQuarterGroup.add(new THREE.Mesh(quarterGeo, matBrandPaint));
     rearQuarterGroup.add(buildPatchBoundaryLine(-1.94, -0.48, 0.0, 0.68, 18, side, lineDarkMat));
 
     const rockerGeo = buildLoftedPorschePatch(-0.52, 0.82, 0.0, 0.06, 16, 4, side);
@@ -1147,7 +1197,7 @@ export function createPorscheScene(
     roofCanopyGroup.add(buildPatchBoundaryLine(0.40, 0.88, 0.68, 1.0, 16, side, lineDarkMat));
 
     const roofGeo = buildLoftedPorschePatch(-0.64, 0.40, 0.70, 1.0, 24, 14, side);
-    roofCanopyGroup.add(new THREE.Mesh(roofGeo, matPorscheBody));
+    roofCanopyGroup.add(new THREE.Mesh(roofGeo, matBrandPaint));
     roofCanopyGroup.add(buildPatchBoundaryLine(-0.64, 0.40, 0.70, 1.0, 18, side, lineDarkMat));
 
     const railSeamPts: THREE.Vector3[] = [];
@@ -1174,7 +1224,7 @@ export function createPorscheScene(
 
   [-1, 1].forEach((side) => {
     const deckGeo = buildLoftedPorschePatch(-1.94, -1.24, 0.68, 1.0, 16, 10, side);
-    rearDecklidGroup.add(new THREE.Mesh(deckGeo, matPorscheBody));
+    rearDecklidGroup.add(new THREE.Mesh(deckGeo, matBrandPaint));
     rearDecklidGroup.add(buildPatchBoundaryLine(-1.94, -1.24, 0.68, 1.0, 12, side, lineDarkMat));
   });
 
@@ -1198,7 +1248,7 @@ export function createPorscheScene(
 
   [-1, 1].forEach((side) => {
     const rBumperGeo = buildLoftedPorschePatch(-2.25, -1.90, 0.0, 1.0, 16, 16, side);
-    rearBumperGroup.add(new THREE.Mesh(rBumperGeo, matPorscheBody));
+    rearBumperGroup.add(new THREE.Mesh(rBumperGeo, matBrandPaint));
     rearBumperGroup.add(buildPatchBoundaryLine(-2.25, -1.90, 0.0, 0.68, 12, side, lineDarkMat));
 
     const tailLightAssy = new THREE.Group();
@@ -2013,6 +2063,8 @@ export function createPorscheScene(
     masterGroup.rotation.y += ((pointerX * 0.045) - masterGroup.rotation.y) * ease;
     masterGroup.rotation.x += ((pointerY * 0.02) - masterGroup.rotation.x) * ease;
 
+    sharedGraphiteUniforms.uLightYaw.value = scrollState.lightYaw;
+
     const angle = scrollState.camAngle + userYaw;
     const radius = scrollState.camRadius;
     camera.position.x = Math.sin(angle) * radius;
@@ -2041,8 +2093,12 @@ export function createPorscheScene(
         camera.setViewOffset(width, height, (0.5 - centerX) * width, 0, width, height);
       }
       camera.updateProjectionMatrix();
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      const pixelRatio = Math.min(window.devicePixelRatio, 2);
+      renderer.setPixelRatio(pixelRatio);
       renderer.setSize(width, height, false);
+      const drawingBuffer = renderer.getDrawingBufferSize(new THREE.Vector2());
+      sharedGraphiteUniforms.uResolution.value.copy(drawingBuffer);
+      sharedGraphiteUniforms.uPixelRatio.value = pixelRatio;
     },
 
     setPointer(x, y) {

@@ -121,6 +121,7 @@ const PorscheCanvas: React.FC<PorscheCanvasProps> = ({ triggerRef, start, end, r
         lookX: 0,
         lookY: 0.56,
         lookZ: 0.22,
+        lightYaw: 0,
         duration: 1.6,
         ease: 'power1.inOut',
       }, 0);

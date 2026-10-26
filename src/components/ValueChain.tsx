@@ -44,6 +44,8 @@ const COL_X = [90, 300, 510];
 const ROW_GAP = 100;
 const FIRST_ROW_Y = 45;
 const TURN_R = ROW_GAP / 2;
+// Spacing (in SVG units) between sampled points of the lit belt; small enough to keep the turns smooth.
+const PROGRESS_SAMPLE = 2;
 
 function buildConveyor(count: number) {
   const rows = Math.max(1, Math.ceil(count / COLS));
@@ -131,6 +133,7 @@ export const ValueChain: React.FC<ValueChainProps> = ({
     enabled: stepScrollEnabled,
   });
 
+  const beltPathRef = useRef<SVGPathElement>(null);
   const progressPathRef = useRef<SVGPathElement>(null);
   const packetRef = useRef<HTMLDivElement>(null);
   const packetDistRef = useRef(0);
@@ -158,22 +161,37 @@ export const ValueChain: React.FC<ValueChainProps> = ({
     .filter(({ step }) => step.siteId === activeSite?.id);
 
   // The product packet rides the conveyor to the active station; the belt behind it lights up.
+  // The lit belt is a real sub-path sampled from the rails rather than a dash offset: with
+  // `non-scaling-stroke` dash lengths are measured in screen pixels, so a dash-based progress
+  // line falls short of the station whenever the SVG is scaled or stretched.
   useEffect(() => {
+    const belt = beltPathRef.current;
     const path = progressPathRef.current;
     const packet = packetRef.current;
     const target = conveyor.nodes[activeIndex];
-    if (!path || !packet || !target) return;
+    if (!belt || !path || !packet || !target) return;
 
-    const total = path.getTotalLength();
-    path.style.strokeDasharray = `${total}`;
+    const total = belt.getTotalLength();
     const from = packetDistRef.current;
     const to = target.dist;
     const duration = prefersReducedMotion() ? 0 : Math.min(1400, 400 + Math.abs(to - from) * 0.6);
 
+    const travelledPath = (dist: number) => {
+      const points: string[] = [];
+      for (let s = 0; s < dist; s += PROGRESS_SAMPLE) {
+        const p = belt.getPointAtLength(s);
+        points.push(`${p.x.toFixed(1)} ${p.y.toFixed(1)}`);
+      }
+      const end = belt.getPointAtLength(dist);
+      points.push(`${end.x.toFixed(1)} ${end.y.toFixed(1)}`);
+      return `M ${points.join(' L ')}`;
+    };
+
     const apply = (dist: number) => {
-      packetDistRef.current = dist;
-      path.style.strokeDashoffset = `${total - dist}`;
-      const point = path.getPointAtLength(dist);
+      const clamped = Math.max(0, Math.min(total, dist));
+      packetDistRef.current = clamped;
+      path.setAttribute('d', travelledPath(clamped));
+      const point = belt.getPointAtLength(clamped);
       packet.style.left = toLeftPct(point.x);
       packet.style.top = toTopPct(point.y);
     };
@@ -318,7 +336,7 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                 style={isRtl ? { transform: 'scaleX(-1)' } : undefined}
               >
                 {/* Belt rails */}
-                <path d={conveyor.path} fill="none" stroke="rgb(148 163 184 / 0.15)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                <path ref={beltPathRef} d={conveyor.path} fill="none" stroke="rgb(148 163 184 / 0.15)" strokeWidth="14" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
                 {/* Moving rollers */}
                 <path
                   d={conveyor.path}
@@ -333,7 +351,7 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                 {/* Travelled path */}
                 <path
                   ref={progressPathRef}
-                  d={conveyor.path}
+                  d={`M ${conveyor.nodes[0].x} ${conveyor.nodes[0].y}`}
                   fill="none"
                   stroke={activeAccent.hex}
                   strokeWidth="4"

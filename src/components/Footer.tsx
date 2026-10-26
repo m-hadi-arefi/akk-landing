@@ -34,7 +34,7 @@ export const Footer: React.FC<FooterProps> = ({
           
           {/* Brand Info (5 cols) */}
           <div className="md:col-span-5 space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
               <div className="h-10 p-1 bg-white rounded-lg flex items-center justify-center shrink-0">
                 <img
                   src={logoSrc}
@@ -42,7 +42,7 @@ export const Footer: React.FC<FooterProps> = ({
                   className="h-full w-auto object-contain max-h-8"
                 />
               </div>
-              <span className="text-base font-bold text-white tracking-tight">
+              <span className="text-base font-bold text-white tracking-tight leading-snug min-w-0">
                 {lang === 'fa' ? 'آریان خودرو خاورمیانه' : 'Arian Khodro Middle East'}
               </span>
             </div>

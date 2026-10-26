@@ -181,7 +181,7 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
                   />
                 </div>
 
-                <div className="space-y-7">
+                <div className="space-y-8 sm:space-y-7">
                   {milestones.map((item, idx) => {
                     const isReached = idx < reachedCount;
                     return (
@@ -213,12 +213,12 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
                           isReached ? 'opacity-100' : 'opacity-55'
                         }`}
                       >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-bold font-mono text-blue-700 tabular-nums bg-blue-50 px-2 py-0.5 rounded-md">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-1">
+                          <span className="self-start text-xs font-bold font-mono text-blue-700 tabular-nums bg-blue-50 px-2 py-0.5 rounded-md">
                             {item.year}
                           </span>
-                          <span className="text-slate-300">·</span>
-                          <h3 className="text-xs sm:text-sm font-bold text-slate-900 group-hover:text-blue-900 transition-colors">
+                          <span className="hidden sm:inline text-slate-300">·</span>
+                          <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-snug group-hover:text-blue-900 transition-colors">
                             {item.title}
                           </h3>
                         </div>

@@ -269,9 +269,9 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                 disabled={activeIndex === 0}
                 onClick={() => select(activeIndex - 1)}
                 aria-label={lang === 'fa' ? 'مرحله قبلی' : 'Previous step'}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded transition-colors"
+                className="min-h-11 min-w-11 grid place-items-center text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded transition-colors"
               >
-                <PrevIcon className="w-3.5 h-3.5" />
+                <PrevIcon className="w-4 h-4" />
               </button>
               <div className="px-2 text-xs font-mono font-bold text-slate-200 tabular-nums">
                 {pad2(activeIndex + 1)} / {pad2(count)}
@@ -281,9 +281,9 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                 disabled={activeIndex === count - 1}
                 onClick={() => select(activeIndex + 1)}
                 aria-label={lang === 'fa' ? 'مرحله بعدی' : 'Next step'}
-                className="p-1.5 text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded transition-colors"
+                className="min-h-11 min-w-11 grid place-items-center text-slate-300 hover:text-white hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none rounded transition-colors"
               >
-                <NextIcon className="w-3.5 h-3.5" />
+                <NextIcon className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -293,7 +293,7 @@ export const ValueChain: React.FC<ValueChainProps> = ({
           {/* Conveyor Map */}
           <div className="lg:col-span-7 rounded-2xl border border-white/10 bg-slate-900/60 backdrop-blur-sm p-3 sm:p-4 flex flex-col">
             <div
-              className="relative w-full aspect-[4/5] sm:aspect-[var(--vc-ar)] rounded-xl overflow-hidden"
+              className="relative w-full aspect-[4/5] sm:aspect-[var(--vc-ar)] rounded-xl overflow-hidden px-2 sm:px-3"
               style={{ '--vc-ar': `${VB_W}/${conveyor.height}` } as React.CSSProperties}
             >
               {/* Faint photo of the active site under the blueprint */}
@@ -385,12 +385,12 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                       aria-controls="vc-panel"
                       tabIndex={isActive ? 0 : -1}
                       onClick={() => select(idx)}
-                      className={`group absolute w-24 sm:w-28 -translate-x-1/2 -translate-y-5 flex flex-col items-center text-center focus:outline-none ${
+                      className={`group absolute w-[5.5rem] sm:w-28 -translate-x-1/2 -translate-y-5 flex flex-col items-center text-center focus:outline-none ${
                         isActive ? 'z-10' : ''
                       }`}
                       style={{ left: toLeftPct(node.x), top: toTopPct(node.y) }}
                     >
-                      <span className="relative w-10 h-10 flex items-center justify-center">
+                      <span className="relative w-11 h-11 flex items-center justify-center">
                         {isActive && (
                           <span
                             aria-hidden="true"
@@ -399,7 +399,7 @@ export const ValueChain: React.FC<ValueChainProps> = ({
                           />
                         )}
                         <span
-                          className={`relative w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all duration-300 group-focus-visible:ring-2 group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-slate-950 ${
+                          className={`relative w-11 h-11 rounded-xl border-2 flex items-center justify-center transition-all duration-300 group-focus-visible:ring-2 group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-slate-950 ${
                             isActive
                               ? `${accent.node} scale-110`
                               : isDone

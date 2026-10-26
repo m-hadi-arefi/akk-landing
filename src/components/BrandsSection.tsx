@@ -24,7 +24,7 @@ type BrandTheme = {
 // Visual identity per brand: in-house manufacturing (blue, gear) vs. global sourcing (amber, globe).
 const BRAND_THEMES: Record<string, BrandTheme> = {
   'arian-khodro': {
-    monogram: 'AK',
+    monogram: 'AKK',
     rgb: '59 130 246',
     monogramBg: 'from-blue-500 to-cyan-400',
     text: 'text-blue-300',
@@ -144,7 +144,7 @@ const BrandCard: React.FC<{ brand: BrandInfo; theme: BrandTheme; lang: Language 
             {theme.label[lang]}
           </div>
 
-          <h3 className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-2">
+          <h3 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight mb-2 leading-snug text-balance">
             {brand.name}
           </h3>
           <p className={`text-sm font-bold mb-4 ${theme.text}`}>{brand.tagline}</p>
@@ -230,11 +230,13 @@ export const BrandsSection: React.FC<BrandsSectionProps> = ({
         {/* Brand architecture: parent company branching into its brands */}
         <div className="max-w-5xl mx-auto">
           <div className="flex justify-center">
-            <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/5 border border-white/15 backdrop-blur-sm text-sm font-bold">
-              <span className="w-7 h-7 rounded-full bg-white text-slate-900 flex items-center justify-center">
+            <div className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 sm:gap-2.5 px-3 sm:px-4 py-2 rounded-full bg-white/5 border border-white/15 backdrop-blur-sm text-xs sm:text-sm font-bold text-center">
+              <span className="w-7 h-7 shrink-0 rounded-full bg-white text-slate-900 flex items-center justify-center">
                 <Building2 className="w-4 h-4" />
               </span>
-              {lang === 'fa' ? 'گروه آریان خودرو خاورمیانه' : 'Arian Khodro Middle East Group'}
+              <span className="min-w-0 leading-snug">
+                {lang === 'fa' ? 'گروه آریان خودرو خاورمیانه' : 'Arian Khodro Middle East Group'}
+              </span>
             </div>
           </div>
 

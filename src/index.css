@@ -13,12 +13,17 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    overflow-x: clip;
     font-family: var(--font-sans);
     font-feature-settings: 'cv11', 'ss01', 'ss03';
     font-optical-sizing: auto;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  body {
+    overflow-x: clip;
   }
 
   body, button, input, textarea, select {

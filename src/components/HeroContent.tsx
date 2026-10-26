@@ -184,7 +184,7 @@ export const HeroContent: React.FC<HeroContentProps> = ({
           variants={titleContainer}
           aria-label={title}
           style={{ perspective: 900 }}
-          className="mt-6 flex flex-wrap gap-x-[0.28em] gap-y-1.5 text-3xl sm:text-4xl xl:text-[3.35rem] font-bold tracking-tight text-slate-900 leading-[1.15] rtl:leading-[1.38]"
+          className="mt-6 flex flex-wrap gap-x-[0.28em] gap-y-1.5 text-2xl sm:text-4xl xl:text-[3.35rem] font-bold tracking-tight text-slate-900 leading-[1.2] rtl:leading-[1.4]"
         >
           {titleWords.map((word, idx) => {
             const isHighlight = idx === titleWords.length - 1 && titleWords.length > 1;
@@ -236,7 +236,7 @@ export const HeroContent: React.FC<HeroContentProps> = ({
         {/* Actions */}
         <motion.div
           variants={fadeUpBlur}
-          className="mt-8 flex flex-wrap items-center gap-3.5"
+          className="mt-8 flex flex-wrap items-stretch sm:items-center gap-3 sm:gap-3.5"
         >
           {/* Primary CTA */}
           <motion.a
@@ -244,12 +244,12 @@ export const HeroContent: React.FC<HeroContentProps> = ({
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="group relative inline-flex items-center gap-3 h-12 ps-6 pe-1.5 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 bg-[length:200%_auto] hover:bg-right shadow-lg shadow-blue-700/25 hover:shadow-xl hover:shadow-blue-700/35 transition-all duration-500 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
+            className="group relative inline-flex w-full sm:w-auto items-center justify-center gap-3 min-h-12 py-2.5 ps-5 pe-1.5 sm:ps-6 rounded-full text-sm font-semibold text-center text-white bg-gradient-to-r from-blue-700 via-blue-600 to-blue-700 bg-[length:200%_auto] hover:bg-right shadow-lg shadow-blue-700/25 hover:shadow-xl hover:shadow-blue-700/35 transition-all duration-500 overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
           >
             <span className="pointer-events-none absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-            <span className="relative z-10">{ctaPrimary}</span>
-            <span className="relative z-10 grid place-items-center w-9 h-9 rounded-full bg-white/15 group-hover:bg-white text-white group-hover:text-blue-700 transition-colors duration-300">
+            <span className="relative z-10 leading-snug text-balance">{ctaPrimary}</span>
+            <span className="relative z-10 grid place-items-center w-9 h-9 shrink-0 rounded-full bg-white/15 group-hover:bg-white text-white group-hover:text-blue-700 transition-colors duration-300">
               <ForwardArrow
                 className={`w-4 h-4 transition-transform duration-300 ${
                   isRtl ? 'group-hover:-translate-x-0.5' : 'group-hover:translate-x-0.5'
@@ -265,21 +265,21 @@ export const HeroContent: React.FC<HeroContentProps> = ({
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="group inline-flex items-center gap-2.5 h-12 ps-1.5 pe-5 rounded-full text-sm font-semibold text-slate-800 bg-white/85 backdrop-blur-md border border-slate-200/90 hover:border-blue-300 hover:text-blue-700 hover:bg-white shadow-sm shadow-slate-900/[0.04] hover:shadow-md transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
+            className="group inline-flex w-full sm:w-auto items-center justify-center gap-2.5 min-h-12 py-2.5 ps-1.5 pe-5 rounded-full text-sm font-semibold text-slate-800 bg-white/85 backdrop-blur-md border border-slate-200/90 hover:border-blue-300 hover:text-blue-700 hover:bg-white shadow-sm shadow-slate-900/[0.04] hover:shadow-md transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600"
           >
-            <span className="grid place-items-center w-9 h-9 rounded-full bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
+            <span className="grid place-items-center w-9 h-9 shrink-0 rounded-full bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-300">
               <Factory
                 className="w-4 h-4 transition-transform duration-300 group-hover:scale-110"
                 strokeWidth={1.75}
               />
             </span>
-            <span>{ctaSecondary}</span>
+            <span className="leading-snug">{ctaSecondary}</span>
           </motion.a>
 
           {/* Tertiary Contact Link */}
           <a
             href="#contact"
-            className="group relative inline-flex items-center gap-1.5 h-12 px-3.5 rounded-full text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors"
+            className="group relative inline-flex w-full sm:w-auto items-center justify-center gap-1.5 min-h-12 px-3.5 rounded-full text-sm font-medium text-slate-600 hover:text-blue-700 transition-colors"
           >
             <span className="relative">
               {ctaContact}
@@ -313,7 +313,7 @@ export const HeroContent: React.FC<HeroContentProps> = ({
                 onMouseEnter={() => setHoveredIdx(idx)}
                 whileHover={{ y: -6 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 24 }}
-                className={`group relative flex flex-col justify-between min-h-[144px] p-4 sm:p-5 rounded-3xl cursor-default select-none overflow-hidden transition-shadow duration-500 ${
+                className={`group relative flex flex-col justify-between min-h-[120px] sm:min-h-[144px] p-3 sm:p-5 rounded-2xl sm:rounded-3xl cursor-default select-none overflow-hidden transition-shadow duration-500 ${
                   isActive
                     ? 'shadow-xl shadow-blue-700/25 ring-1 ring-blue-500/40'
                     : 'bg-white/80 backdrop-blur-xl border border-slate-200/80 shadow-sm shadow-slate-900/[0.03] hover:border-blue-200'
@@ -387,9 +387,9 @@ export const HeroContent: React.FC<HeroContentProps> = ({
                 </div>
 
                 {/* Bottom Row: Value + Label + Animated Progress Line */}
-                <div className="relative z-10 mt-5">
+                <div className="relative z-10 mt-3 sm:mt-5">
                   <dd
-                    className={`text-2xl sm:text-[26px] font-extrabold tabular-nums tracking-tight leading-none transition-colors duration-300 ${
+                    className={`text-xl sm:text-[26px] font-extrabold tabular-nums tracking-tight leading-none transition-colors duration-300 ${
                       isActive ? 'text-white' : 'text-slate-900'
                     }`}
                   >
@@ -397,7 +397,7 @@ export const HeroContent: React.FC<HeroContentProps> = ({
                   </dd>
 
                   <dt
-                    className={`mt-1.5 text-xs font-medium leading-4 transition-colors duration-300 ${
+                    className={`mt-1.5 text-[11px] sm:text-xs font-medium leading-snug line-clamp-2 transition-colors duration-300 ${
                       isActive ? 'text-blue-100/90' : 'text-slate-500'
                     }`}
                   >

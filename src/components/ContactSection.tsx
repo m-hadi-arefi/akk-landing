@@ -81,7 +81,7 @@ const CopyButton: React.FC<{ copied: boolean; onCopy: () => void; label: string 
     onClick={onCopy}
     aria-label={label}
     title={label}
-    className={`p-1.5 rounded-md transition-colors ${copied ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-blue-700 hover:bg-blue-50'}`}
+    className={`min-h-11 min-w-11 grid place-items-center rounded-md transition-colors ${copied ? 'text-emerald-600 bg-emerald-50' : 'text-slate-400 hover:text-blue-700 hover:bg-blue-50'}`}
   >
     {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
   </button>
@@ -311,7 +311,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
                       style={{ left: `${x}%`, top: `${(y / 60) * 100}%` }}
                     >
                       <span
-                        className={`mb-1 whitespace-nowrap px-2 py-0.5 rounded-md text-[10px] font-bold transition-all ${
+                        className={`mb-1 max-w-[7.5rem] sm:max-w-[9rem] px-2 py-0.5 rounded-md text-[10px] font-bold text-center leading-tight transition-all ${
                           isActive ? 'bg-white text-slate-900 shadow-lg' : 'bg-slate-800/80 text-slate-300 group-hover:bg-slate-700'
                         }`}
                       >

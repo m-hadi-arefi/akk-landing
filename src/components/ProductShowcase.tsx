@@ -118,7 +118,7 @@ const ProductCard: React.FC<{ prod: ProductShowcaseItem; lang: Language }> = ({ 
 
       {/* Tear line with ticket notches and the quality stamp riding on it */}
       <div aria-hidden="true" className="relative h-0 border-t-2 border-dashed border-slate-200">
-        <div className="absolute -top-9 end-4 z-10 w-[72px] h-[72px] text-emerald-600 opacity-85 group-hover:opacity-100 group-hover:-rotate-6 transition-all duration-500">
+        <div className="absolute -top-9 end-4 z-10 hidden sm:block w-[72px] h-[72px] text-emerald-600 opacity-85 group-hover:opacity-100 group-hover:-rotate-6 transition-all duration-500">
           <svg viewBox="0 0 100 100" className="w-full h-full group-hover:animate-[spin_10s_linear_infinite] motion-reduce:animate-none">
             <defs>
               <path id={stampPathId} d="M 50 50 m -38 0 a 38 38 0 1 1 76 0 a 38 38 0 1 1 -76 0" />
@@ -137,11 +137,11 @@ const ProductCard: React.FC<{ prod: ProductShowcaseItem; lang: Language }> = ({ 
 
       {/* Part label */}
       <div className="p-4 pt-5">
-        <div className="pe-20">
+        <div className="pe-0 sm:pe-20">
           <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider block mb-1">
             {prod.category}
           </span>
-          <h3 className="text-[15px] font-bold text-slate-900 leading-snug group-hover:text-blue-700 transition-colors">
+          <h3 className="text-[15px] font-bold text-slate-900 leading-snug text-pretty group-hover:text-blue-700 transition-colors">
             {prod.name}
           </h3>
         </div>
@@ -199,9 +199,9 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
         </div>
 
         {/* Note on Product Catalog */}
-        <div className="mt-8 p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-blue-900">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">{lang === 'fa' ? 'تنوع کامل محصولات:' : 'Complete Parts Catalog:'}</span>
+        <div className="mt-8 p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-blue-900">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2 min-w-0 text-pretty leading-relaxed">
+            <span className="font-bold shrink-0">{lang === 'fa' ? 'تنوع کامل محصولات:' : 'Complete Parts Catalog:'}</span>
             <span>
               {lang === 'fa' 
                 ? 'پژو ۲۰۶، ۲۰۷، پارس، ۴۰۵، پراید، تیبا، ساینا، سمند و دنا (انواع سپر، جلوپنجره، قالپاق و تریم‌های پلیمری).' 

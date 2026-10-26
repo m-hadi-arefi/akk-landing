@@ -125,9 +125,9 @@ export const Hero: React.FC<HeroProps> = ({
               />
             </div>
 
-            {/* Mobile: a tall track keeps the full-width drawing sticky while the timeline scrubs. */}
+            {/* Mobile: shorter scrub track so the drawing does not trap ~2 extra screens. */}
             {!isDesktop && (
-              <div ref={mobileTrackRef} className="relative h-[220vh]">
+              <div ref={mobileTrackRef} className="relative h-[130vh]">
                 <div className="sticky top-24 -mx-4 sm:-mx-6">
                   <PorscheShowcase
                     variant="inline"

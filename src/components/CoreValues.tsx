@@ -163,7 +163,7 @@ export const CoreValues: React.FC<CoreValuesProps> = ({
                     type="button"
                     onClick={() => choose(idx)}
                     aria-pressed={isActive}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all duration-300 ${
+                    className={`inline-flex items-center gap-1.5 min-h-11 px-3.5 py-2 rounded-full border text-xs font-bold transition-all duration-300 ${
                       isActive
                         ? 'bg-slate-900 text-white border-slate-900 shadow-md'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-blue-300 hover:text-blue-700'
@@ -178,9 +178,9 @@ export const CoreValues: React.FC<CoreValuesProps> = ({
           </ul>
         </div>
 
-        {/* Values compass */}
-        <div className="lg:col-span-6">
-          <div className="relative w-full max-w-[520px] mx-auto aspect-square">
+        {/* Values compass — desktop/tablet only; chips above are the mobile control */}
+        <div className="hidden md:block lg:col-span-6">
+          <div className="relative w-full max-w-[420px] lg:max-w-[520px] mx-auto aspect-square">
             {/* Outer rotating scale ring */}
             <svg aria-hidden="true" viewBox="0 0 100 100" className="absolute inset-0 w-full h-full animate-[spin_80s_linear_infinite] motion-reduce:animate-none">
               <circle cx="50" cy="50" r="49" fill="none" stroke="rgb(148 163 184 / 0.5)" strokeWidth="0.3" strokeDasharray="0.4 1.6" />

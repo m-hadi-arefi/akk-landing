@@ -3,7 +3,7 @@ import {
   Network, Globe, Layers, Cpu, ShieldCheck, 
   Palette, PackageCheck, Warehouse, Truck, 
   Factory, Sparkles, MapPin, Package, Mouse,
-  ArrowLeft, ArrowRight, Check, RotateCcw,
+  ArrowLeft, ArrowRight, Check, RotateCcw, Building2,
 } from 'lucide-react';
 import { Language, ValueChainStep, IndustrialFacility } from '../types';
 import { useStepScroll } from '../hooks/useStepScroll';
@@ -30,6 +30,8 @@ const iconMap: Record<string, React.ElementType> = {
   Truck,
   Factory,
   Sparkles,
+  Building2,
+  MapPin,
 };
 
 // Scroll-stepping needs the map and inspector side by side; on smaller screens stages change by tap only.
@@ -427,18 +429,18 @@ export const ValueChain: React.FC<ValueChainProps> = ({
               </div>
             </div>
 
-            {/* Site legend */}
+            {/* Site legend — only units linked to value-chain stages */}
             <div className="mt-3 pt-3 border-t border-white/10 flex flex-wrap gap-1.5">
               {sites.map((site, idx) => {
-                const accent = SITE_ACCENTS[idx % SITE_ACCENTS.length];
                 const firstStage = steps.findIndex((s) => s.siteId === site.id);
+                if (firstStage < 0) return null;
+                const accent = SITE_ACCENTS[idx % SITE_ACCENTS.length];
                 const isActiveSite = idx === activeSiteIndex;
                 return (
                   <button
                     key={site.id}
                     type="button"
                     tabIndex={-1}
-                    disabled={firstStage < 0}
                     onClick={() => select(firstStage)}
                     className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold transition-all ${
                       isActiveSite ? accent.chip : 'border-white/10 text-slate-500 hover:text-slate-300'

@@ -32,7 +32,7 @@ const ProductCard: React.FC<{ prod: ProductShowcaseItem; lang: Language }> = ({ 
   const cardRef = useRef<HTMLElement>(null);
   const barcode = useBarcode(prod.code);
   const stampText =
-    lang === 'fa' ? 'رنگ کوره‌ای • کنترل کیفی شده • آرین خودرو • ' : 'OEM COAT • QUALITY CHECKED • ARIAN KHODRO • ';
+    lang === 'fa' ? 'رنگ‌آمیزی مکانیزه • کنترل کیفی شده • آریان خودرو خاورمیانه • ' : 'MECHANIZED COAT • QUALITY CHECKED • ARIAN KHODRO MIDDLE EAST • ';
   const stampPathId = `stamp-${prod.id}`;
 
   const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
@@ -210,7 +210,7 @@ export const ProductShowcase: React.FC<ProductShowcaseProps> = ({
           </div>
 
           <a
-            href="https://arian-int.com/shop/"
+            href="https://akk.ir"
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 font-bold text-blue-700 hover:text-blue-900 shrink-0 hover:underline"

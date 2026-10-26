@@ -133,19 +133,19 @@ export const AboutIntro: React.FC<AboutIntroProps> = ({
                 </span>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   {lang === 'fa'
-                    ? 'خطوط تزریق پلاستیک قطعات بدنه با قالب‌های مدرن صنعتی در مساحت ۱۰,۰۰۰ مترمربع.'
-                    : 'High-tonnage injection molding lines for automotive body parts spanning 10,000 m².'}
+                    ? 'خطوط تزریق پلاستیک قطعات بدنه با قالب‌های مدرن صنعتی در مساحت ۱۳,۰۰۰ مترمربع.'
+                    : 'High-tonnage injection molding lines for automotive body parts spanning 13,000 m².'}
                 </p>
               </div>
 
               <div className="p-5 rounded-xl bg-white border border-slate-200 shadow-2xs hover:border-blue-300 hover:shadow-md transition-all duration-300 group">
                 <span className="text-xs font-bold text-blue-800 block mb-1.5 group-hover:translate-x-1 transition-transform">
-                  {lang === 'fa' ? 'زنجیره یکپارچه ۴ سایت' : '4 Integrated Operating Sites'}
+                  {lang === 'fa' ? 'زنجیره یکپارچه ۶ واحد' : '6 Integrated Operational Units'}
                 </span>
                 <p className="text-xs text-slate-500 leading-relaxed">
                   {lang === 'fa'
-                    ? 'از گرانول‌سازی اختصاصی تا رنگ کوره‌ای با ۲ خط ۲۰۰ متری، انبار ۴,۰۰۰ متری و شبکه پخش کشوری.'
-                    : 'From specialized polymer compounding to two 200m automated paint lines and a 4,000 m² warehouse.'}
+                    ? 'از گرانول‌سازی ۱,۵۰۰ متری تا ۴ خط رنگ‌آمیزی مکانیزه (مجموع ۴۰۰ متر)، مونتاژ ۲,۶۲۰ متری و انبار ۲۴,۰۰۰ متری.'
+                    : 'From a 1,500 m² granulation unit to four mechanized paint lines (400 m total), 2,620 m² assembly, and a 24,000 m² warehouse.'}
                 </p>
               </div>
             </div>

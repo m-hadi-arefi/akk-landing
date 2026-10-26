@@ -236,10 +236,13 @@ const graphiteFragmentShader = `
     float reflStreak = smoothstep(0.88, 0.92, sin(reflCoord * 2.8));
 
     if (uGlassMode > 0.5 && uGlassMode < 1.5) {
-      float glassStreak = reflStreak;
-      float thinStreak = smoothstep(0.975, 0.99, sin(reflCoord * 1.7 + 1.3));
+      // Streak bands must cut diagonally across the raked windshield; bands of reflCoord would run
+      // straight up its slope and read as a stripe down the middle.
+      float glassCoord = vWorldPos.x * 3.4 + vWorldPos.y * 6.0 + vWorldPos.z * 1.2;
+      float glassStreak = smoothstep(0.88, 0.92, sin(glassCoord * 2.8));
+      float thinStreak = smoothstep(0.975, 0.99, sin(glassCoord * 1.7 + 1.3));
       float rimSheen = pow(1.0 - ndotv, 3.0) * 0.12;
-      lum = clamp(0.03 + spec * 0.9 + glassStreak * 0.40 + thinStreak * 0.25 + rimSheen, 0.0, 0.92);
+      lum = clamp(0.03 + spec * 0.9 + glassStreak * 0.26 + thinStreak * 0.18 + rimSheen, 0.0, 0.92);
       float glassShade = smoothstep(0.0, 0.90, lum);
       hatchMask = glassShade * mix(1.0, h2B, 0.45);
     }
@@ -291,54 +294,72 @@ function smoothstep(edge0: number, edge1: number, x: number) {
   return t * t * (3 - 2 * t);
 }
 
+// Monotone (PCHIP) Hermite interpolation: control points are unevenly spaced (dense around the nose
+// and windshield base), where a uniform Catmull-Rom spline overshoots and ripples the surface.
 function evalProfileSpline(z: number, controlPoints: Profile) {
-  if (z <= controlPoints[0][0]) return controlPoints[0][1];
   const n = controlPoints.length;
+  if (z <= controlPoints[0][0]) return controlPoints[0][1];
   if (z >= controlPoints[n - 1][0]) return controlPoints[n - 1][1];
+
+  const secant = (j: number) =>
+    (controlPoints[j + 1][1] - controlPoints[j][1]) / (controlPoints[j + 1][0] - controlPoints[j][0]);
+  const tangent = (j: number) => {
+    if (j === 0) return secant(0) * 0.5;
+    if (j === n - 1) return secant(n - 2) * 0.5;
+    const d0 = secant(j - 1);
+    const d1 = secant(j);
+    if (d0 * d1 <= 0) return 0;
+    const h0 = controlPoints[j][0] - controlPoints[j - 1][0];
+    const h1 = controlPoints[j + 1][0] - controlPoints[j][0];
+    const w0 = 2 * h1 + h0;
+    const w1 = h1 + 2 * h0;
+    return (w0 + w1) / (w0 / d0 + w1 / d1);
+  };
+
   for (let i = 0; i < n - 1; i++) {
     const z0 = controlPoints[i][0];
     const z1 = controlPoints[i + 1][0];
     if (z >= z0 && z <= z1) {
-      const t = (z - z0) / (z1 - z0);
-      const p0 = controlPoints[Math.max(0, i - 1)][1];
-      const p1 = controlPoints[i][1];
-      const p2 = controlPoints[i + 1][1];
-      const p3 = controlPoints[Math.min(n - 1, i + 2)][1];
+      const h = z1 - z0;
+      const t = (z - z0) / h;
       const t2 = t * t;
       const t3 = t2 * t;
-      return 0.5 * (
-        (2 * p1) +
-        (-p0 + p2) * t +
-        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-        (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-      );
+      return (2 * t3 - 3 * t2 + 1) * controlPoints[i][1] +
+        (t3 - 2 * t2 + t) * h * tangent(i) +
+        (-2 * t3 + 3 * t2) * controlPoints[i + 1][1] +
+        (t3 - t2) * h * tangent(i + 1);
     }
   }
   return controlPoints[n - 1][1];
 }
 
+// Low 911 coupe roofline: raked windshield (~32 deg) from the cowl at z = 0.88 to the header at
+// z = 0.20, a flat crown just behind the driver, then the long fastback down to the tail.
 const centerTopProfile: Profile = [
   [-2.25, 0.46],
   [-2.18, 0.68],
   [-2.04, 0.79],
-  [-1.65, 0.93],
-  [-1.30, 1.045],
-  [-1.08, 1.115],
-  [-0.82, 1.185],
-  [-0.52, 1.245],
-  [-0.22, 1.282],
-  [ 0.06, 1.292],
-  [ 0.25, 1.276],
-  [ 0.40, 1.235],
-  [ 0.53, 1.155],
-  [ 0.66, 1.045],
-  [ 0.78, 0.925],
-  [ 0.88, 0.835],
-  [ 1.28, 0.768],
-  [ 1.68, 0.665],
-  [ 2.06, 0.512],
-  [ 2.18, 0.420],
-  [ 2.25, 0.305],
+  [-1.65, 0.915],
+  [-1.30, 1.030],
+  [-1.00, 1.115],
+  [-0.70, 1.183],
+  [-0.40, 1.232],
+  [-0.15, 1.258],
+  [ 0.05, 1.262],
+  [ 0.20, 1.245],
+  [ 0.32, 1.212],
+  [ 0.50, 1.112],
+  [ 0.70, 0.990],
+  [ 0.88, 0.858],
+  [ 1.00, 0.828],
+  [ 1.28, 0.776],
+  [ 1.68, 0.685],
+  [ 1.95, 0.607],
+  [ 2.06, 0.567],
+  [ 2.14, 0.535],
+  [ 2.20, 0.490],
+  [ 2.235, 0.430],
+  [ 2.25, 0.365],
 ];
 
 const shoulderHeightProfile: Profile = [
@@ -353,14 +374,16 @@ const shoulderHeightProfile: Profile = [
   [ 0.15, 0.84],
   [ 0.52, 0.838],
   [ 0.88, 0.835],
-  [ 1.32, 0.825],
-  [ 1.68, 0.752],
-  [ 1.90, 0.652],
-  [ 2.06, 0.535],
-  [ 2.20, 0.395],
-  [ 2.25, 0.285],
+  [ 1.32, 0.828],
+  [ 1.68, 0.768],
+  [ 1.90, 0.670],
+  [ 2.06, 0.555],
+  [ 2.16, 0.490],
+  [ 2.22, 0.430],
+  [ 2.25, 0.335],
 ];
 
+// At the nose the sill turns up steeply so the lower fascia stands almost vertical above the splitter.
 const lowerSillProfile: Profile = [
   [-2.25, 0.32],
   [-2.15, 0.20],
@@ -369,8 +392,11 @@ const lowerSillProfile: Profile = [
   [ 0.00, 0.145],
   [ 1.32, 0.15],
   [ 1.90, 0.15],
-  [ 2.20, 0.145],
-  [ 2.25, 0.26],
+  [ 2.10, 0.142],
+  [ 2.19, 0.140],
+  [ 2.225, 0.165],
+  [ 2.243, 0.225],
+  [ 2.25, 0.300],
 ];
 
 const halfWidthProfile: Profile = [
@@ -385,25 +411,34 @@ const halfWidthProfile: Profile = [
   [ 1.32, 0.905],
   [ 1.75, 0.875],
   [ 2.02, 0.790],
-  [ 2.16, 0.640],
-  [ 2.22, 0.460],
-  [ 2.25, 0.240],
+  [ 2.12, 0.715],
+  [ 2.19, 0.600],
+  [ 2.23, 0.460],
+  [ 2.25, 0.220],
 ];
 
+// Roof-rail / hood-edge half width. The windshield narrows toward the header (A-pillars lean in)
+// and the hood tapers between the raised front fenders.
 const cabinAndHoodWidthProfile: Profile = [
   [-2.25, 0.32],
   [-1.95, 0.46],
   [-1.20, 0.52],
-  [-0.45, 0.57],
-  [ 0.15, 0.61],
-  [ 0.88, 0.565],
-  [ 1.28, 0.502],
-  [ 1.68, 0.440],
+  [-0.60, 0.565],
+  [-0.15, 0.575],
+  [ 0.20, 0.570],
+  [ 0.55, 0.605],
+  [ 0.88, 0.655],
+  [ 1.28, 0.530],
+  [ 1.68, 0.450],
   [ 1.95, 0.392],
   [ 2.06, 0.360],
-  [ 2.18, 0.300],
-  [ 2.25, 0.220],
+  [ 2.16, 0.330],
+  [ 2.22, 0.270],
+  [ 2.25, 0.140],
 ];
+
+const ROOF_CROWN = 0.072;
+const HOOD_CROWN = 0.026;
 
 const ARCH_WHEELS = [
   { wz: 1.32, wy: 0.34, rArch: 0.395 },
@@ -418,18 +453,32 @@ function evalPorsche911Point(z: number, v: number, side = 1) {
   const xSeam = evalProfileSpline(z, cabinAndHoodWidthProfile);
 
   const frontHoodFactor = smoothstep(0.84, 1.05, z);
-  const ySeamCabin = yShoulder + (yCenter - yShoulder) * 0.36;
-  const ySeamHood = yCenter - 0.008;
+  const noseFactor = smoothstep(2.06, 2.16, z);
+  // The roof rail sits only a shallow crown below the centreline, so the roof reads as a low,
+  // gently curved panel rather than a dome; it fades out where the fastback meets the shoulders.
+  const roofCrown = ROOF_CROWN * Math.tanh((Math.max(0, yCenter - yShoulder) * 0.64) / ROOF_CROWN);
+  const ySeamCabin = yCenter - roofCrown;
+  const ySeamHood = yCenter - HOOD_CROWN;
   const ySeam = ySeamCabin * (1 - frontHoodFactor) + ySeamHood * frontHoodFactor;
 
   let x = 0;
   let y = 0;
 
   if (v <= 0.48) {
-    const t = v / 0.48;
+    let t = v / 0.48;
+    // At the nose the lower band first runs across the underside to the centreline, closing the
+    // lower fascia; behind the bumper this strip has zero width.
+    const floorPortion = 0.3 * noseFactor;
+    const tuck = 0.86 + 0.09 * noseFactor;
+    if (t < floorPortion) {
+      const q = t / floorPortion;
+      const xCorner = xMax * tuck;
+      return new THREE.Vector3(side * xCorner * (1 - noseFactor * (1 - q)), yBottom, z);
+    }
+    t = (t - floorPortion) / (1 - floorPortion);
     const angle = t * (Math.PI * 0.5);
     const doorSculpt = (z > -0.6 && z < 0.85) ? Math.sin(t * Math.PI) * 0.025 : 0;
-    x = xMax * (0.86 + 0.14 * Math.sin(angle)) - doorSculpt;
+    x = xMax * (tuck + (1 - tuck) * Math.sin(angle)) - doorSculpt;
     y = yBottom + (yShoulder - yBottom) * Math.pow(t, 0.88);
 
     for (let w = 0; w < ARCH_WHEELS.length; w++) {
@@ -450,22 +499,17 @@ function evalPorsche911Point(z: number, v: number, side = 1) {
     }
   } else if (v <= 0.68) {
     const u = (v - 0.48) / 0.20;
-    x = xMax * (1 - u) + xSeam * u;
+    // Side glass and C-pillars bow outward slightly instead of forming a flat, steep tumblehome.
+    const glassBow = Math.sin(u * Math.PI) * 0.022 * (1 - frontHoodFactor) * smoothstep(-2.0, -1.6, z);
+    x = xMax * (1 - u) + xSeam * u + glassBow;
 
     const torpedoFactor = smoothstep(0.88, 1.25, z) * (1 - smoothstep(1.95, 2.15, z));
-    const torpedoArch = Math.sin(u * Math.PI) * (0.014 + 0.028 * torpedoFactor);
+    const torpedoArch = Math.sin(u * Math.PI) * (0.014 * (1 - noseFactor) + 0.028 * torpedoFactor);
     y = yShoulder * (1 - u) + ySeam * u + torpedoArch;
   } else {
     const w = (v - 0.68) / 0.32;
     x = xSeam * (1 - w);
-
-    if (frontHoodFactor > 0.001) {
-      const crownProfile = Math.sin(w * Math.PI * 0.5);
-      y = ySeam + (yCenter - ySeam) * crownProfile;
-    } else {
-      const arch = Math.sin(w * Math.PI * 0.5);
-      y = ySeam + (yCenter - ySeam) * Math.pow(arch, 0.85);
-    }
+    y = ySeam + (yCenter - ySeam) * Math.sin(w * Math.PI * 0.5);
   }
 
   return new THREE.Vector3(side * x, y, z);
@@ -520,6 +564,108 @@ function buildRingStripGeometry(positions: number[], rings: number, segs: number
   geo.setIndex(indices);
   ensureOutwardNormals(geo);
   return geo;
+}
+
+type SurfaceEval = (a: number, b: number) => THREE.Vector3;
+/** Signed distance to an opening: negative inside the area that must be cut away. */
+type HoleSD = (p: THREE.Vector3, a: number, b: number) => number;
+
+/**
+ * Builds an (nu x nv) grid over the unit parameter square. Where `holeSD` is negative the surface is
+ * cut open; grid vertices just inside an opening are slid along the grid onto its boundary, so
+ * openings get clean outlines instead of a stair-stepped edge.
+ */
+function buildParamSurfaceGeometry(nu: number, nv: number, evalAt: SurfaceEval, holeSD: HoleSD | null = null) {
+  const stride = nv + 1;
+  const positions = new Float32Array((nu + 1) * stride * 3);
+  const uvs = new Float32Array((nu + 1) * stride * 2);
+  const sd = new Float32Array((nu + 1) * stride);
+  const deep = new Uint8Array((nu + 1) * stride);
+  const pts: THREE.Vector3[] = [];
+
+  for (let iu = 0; iu <= nu; iu++) {
+    for (let iv = 0; iv <= nv; iv++) {
+      const k = iu * stride + iv;
+      const a = iu / nu;
+      const b = iv / nv;
+      const p = evalAt(a, b);
+      pts[k] = p;
+      sd[k] = holeSD ? holeSD(p, a, b) : 1;
+      uvs[k * 2] = a;
+      uvs[k * 2 + 1] = b;
+    }
+  }
+
+  if (holeSD) {
+    for (let iu = 0; iu <= nu; iu++) {
+      for (let iv = 0; iv <= nv; iv++) {
+        const k = iu * stride + iv;
+        if (sd[k] >= 0) continue;
+        let best: THREE.Vector3 | null = null;
+        let bestT = Infinity;
+        for (const [du, dv] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const ju = iu + du;
+          const jv = iv + dv;
+          if (ju < 0 || ju > nu || jv < 0 || jv > nv || sd[ju * stride + jv] < 0) continue;
+          let lo = 0;
+          let hi = 1;
+          for (let it = 0; it < 14; it++) {
+            const mid = (lo + hi) * 0.5;
+            const a = (iu + du * mid) / nu;
+            const b = (iv + dv * mid) / nv;
+            if (holeSD(evalAt(a, b), a, b) < 0) lo = mid; else hi = mid;
+          }
+          if (hi < bestT) {
+            bestT = hi;
+            best = evalAt((iu + du * hi) / nu, (iv + dv * hi) / nv);
+          }
+        }
+        if (best) pts[k] = best; else deep[k] = 1;
+      }
+    }
+  }
+
+  for (let k = 0; k < pts.length; k++) {
+    positions[k * 3] = pts[k].x;
+    positions[k * 3 + 1] = pts[k].y;
+    positions[k * 3 + 2] = pts[k].z;
+  }
+
+  const indices: number[] = [];
+  const centroid = new THREE.Vector3();
+  const pushTri = (i0: number, i1: number, i2: number) => {
+    if (holeSD) {
+      if (deep[i0] || deep[i1] || deep[i2]) return;
+      if (sd[i0] < 0 && sd[i1] < 0 && sd[i2] < 0) return;
+      centroid.copy(pts[i0]).add(pts[i1]).add(pts[i2]).multiplyScalar(1 / 3);
+      const a = (uvs[i0 * 2] + uvs[i1 * 2] + uvs[i2 * 2]) / 3;
+      const b = (uvs[i0 * 2 + 1] + uvs[i1 * 2 + 1] + uvs[i2 * 2 + 1]) / 3;
+      if (holeSD(centroid, a, b) < 0) return;
+    }
+    indices.push(i0, i1, i2);
+  };
+  for (let iu = 0; iu < nu; iu++) {
+    for (let iv = 0; iv < nv; iv++) {
+      const a = iu * stride + iv;
+      const b = (iu + 1) * stride + iv;
+      const c = (iu + 1) * stride + iv + 1;
+      const d = iu * stride + iv + 1;
+      pushTri(a, d, b);
+      pushTri(b, d, c);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Point on a body section spanning both sides: s = -1 / +1 are the vMin edges, s = 0 the centreline. */
+function evalMirroredSection(z: number, s: number, vMin: number) {
+  return evalPorsche911Point(z, 1 - Math.abs(s) * (1 - vMin), s < 0 ? -1 : 1);
 }
 
 export function createPorscheScene(
@@ -618,6 +764,68 @@ export function createPorscheScene(
     hatchScale: 1.0,
     glassMode: 2.0,
     opacity: 0.42,
+  });
+
+  // Clear polycarbonate headlight cover: mostly see-through, with streak and rim reflections.
+  const matHeadlightLens = createGraphiteMat({
+    toneBias: -0.10,
+    shadeFloor: 0.72,
+    hatchScale: 1.0,
+    hatchStrength: 0.15,
+    glassMode: 2.0,
+    opacity: 0.1,
+  });
+
+  // Dark parts take their colour from the accent: lit from above, the plain graphite ramp would wash
+  // these upward-facing surfaces out to near paper white.
+  const matHeadlightHousing = createGraphiteMat({
+    graphiteHex: 0x1a1c21,
+    accentHex: 0x2e3238,
+    accentStrength: 0.9,
+    toneBias: 0.3,
+    shadeFloor: 0.10,
+    hatchScale: 1.2,
+    hatchStrength: 0.12,
+    specBoost: 0.55,
+    envReflect: 0.3,
+  });
+
+  const matProjectorLens = createGraphiteMat({
+    graphiteHex: 0x0b0c0f,
+    accentHex: 0x10141c,
+    accentStrength: 0.9,
+    toneBias: 0.4,
+    shadeFloor: 0.04,
+    hatchStrength: 0.1,
+    specBoost: 1.6,
+    envReflect: 0.6,
+  });
+
+  const matIntakeDuct = createGraphiteMat({
+    graphiteHex: 0x0c0d10,
+    accentHex: 0x111317,
+    accentStrength: 0.9,
+    toneBias: 0.4,
+    shadeFloor: 0.05,
+    hatchStrength: 0.1,
+  });
+
+  const matGrille = createGraphiteMat({
+    graphiteHex: 0x16181c,
+    accentHex: 0x2b2f36,
+    accentStrength: 0.8,
+    toneBias: 0.3,
+    shadeFloor: 0.08,
+    hatchStrength: 0.12,
+    specBoost: 0.7,
+    envReflect: 0.2,
+  });
+
+  const matLedLight = createGraphiteMat({
+    toneBias: -0.45,
+    shadeFloor: 0.88,
+    hatchStrength: 0.05,
+    specBoost: 1.0,
   });
 
   const matMachinedAlloy = createGraphiteMat({ toneBias: 0.06, shadeFloor: 0.45, hatchScale: 1.05 });
@@ -770,10 +978,26 @@ export function createPorscheScene(
   // ==========================================================================
   // 5. PARAMETRIC SURFACE PATCHES
   // ==========================================================================
-  const HL_Z_CENTER = 1.845;
-  const HL_U_CENTER = 0.40;
-  const HL_Z_RADIUS = 0.182;
-  const HL_U_RADIUS = 0.34;
+  // Headlight oval in fender-surface parameters (z along the car, u across the fender top). The skew
+  // term angles the oval inward toward the nose, following the 911's fender line.
+  const HL_Z_CENTER = 1.85;
+  const HL_U_CENTER = 0.42;
+  const HL_Z_RADIUS = 0.168;
+  const HL_U_RADIUS = 0.31;
+  const HL_SKEW = 0.18;
+
+  function headlightParam(rNorm: number, theta: number) {
+    const z = HL_Z_CENTER + Math.cos(theta) * HL_Z_RADIUS * rNorm;
+    const u = HL_U_CENTER + Math.sin(theta) * HL_U_RADIUS * rNorm + (z - HL_Z_CENTER) * HL_SKEW;
+    return { z, u };
+  }
+
+  function headlightRadiusAt(z: number, v: number) {
+    const u = (v - 0.46) / 0.20;
+    const dz = (z - HL_Z_CENTER) / HL_Z_RADIUS;
+    const du = (u - HL_U_CENTER - (z - HL_Z_CENTER) * HL_SKEW) / HL_U_RADIUS;
+    return Math.sqrt(dz * dz + du * du);
+  }
 
   function buildLoftedPorschePatch(
     zMin: number,
@@ -844,6 +1068,27 @@ export function createPorscheScene(
     return createPencilCurveLine(pts, true, mat);
   }
 
+  /** One continuous panel across both sides, so no seam or shading crease runs down the centreline. */
+  function buildMirroredPatch(zMin: number, zMax: number, vMin: number, zSteps: number, sSteps: number) {
+    return buildParamSurfaceGeometry(zSteps, sSteps, (a, b) =>
+      evalMirroredSection(zMin + (zMax - zMin) * a, -1 + 2 * b, vMin));
+  }
+
+  function buildMirroredBoundaryLine(
+    zMin: number,
+    zMax: number,
+    vMin: number,
+    steps: number,
+    mat: THREE.Material = lineDarkMat,
+  ) {
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= steps; i++) pts.push(evalMirroredSection(zMin + (zMax - zMin) * (i / steps), 1, vMin));
+    for (let i = 1; i <= steps * 2; i++) pts.push(evalMirroredSection(zMax, 1 - i / steps, vMin));
+    for (let i = 1; i <= steps; i++) pts.push(evalMirroredSection(zMax - (zMax - zMin) * (i / steps), -1, vMin));
+    for (let i = 1; i < steps * 2; i++) pts.push(evalMirroredSection(zMin, -1 + i / steps, vMin));
+    return createPencilCurveLine(pts, true, mat);
+  }
+
   // ==========================================================================
   // 6A. FRONT HOOD
   // ==========================================================================
@@ -855,8 +1100,7 @@ export function createPorscheScene(
     const side = u >= 0 ? 1 : -1;
     const frontCornerZone = smoothstep(0.80, 1.0, tz) * smoothstep(0.55, 1.0, absU);
     const zPullback = frontCornerZone * 0.055;
-    const rearCowlCurve = (1.0 - smoothstep(0.0, 0.15, tz)) * (absU * absU) * 0.022;
-    const z = 0.88 + (2.06 - 0.88) * tz - zPullback + rearCowlCurve;
+    const z = 0.88 + (2.06 - 0.88) * tz - zPullback;
     const v = 1.0 - absU * 0.32;
     return evalPorsche911Point(z, v, side);
   }
@@ -1062,7 +1306,13 @@ export function createPorscheScene(
     const frontFenderGroup = new THREE.Group();
     carRoot.add(frontFenderGroup);
 
-    const fenderGeo = buildLoftedPorschePatch(0.80, 2.06, 0.0, 0.68, 32, 20, side);
+    // Dense grid so the headlight opening cut into the fender keeps a smooth oval outline.
+    const fenderGeo = buildParamSurfaceGeometry(
+      140,
+      170,
+      (a, b) => evalPorsche911Point(0.80 + 1.26 * a, 0.68 * b, side),
+      (_p, a, b) => headlightRadiusAt(0.80 + 1.26 * a, 0.68 * b) - 1,
+    );
     frontFenderGroup.add(new THREE.Mesh(fenderGeo, matBrandPaint));
     frontFenderGroup.add(buildPatchBoundaryLine(0.80, 2.06, 0.0, 0.68, 22, side, lineDarkMat));
 
@@ -1090,97 +1340,123 @@ export function createPorscheScene(
     const headlightGroup = new THREE.Group();
     carRoot.add(headlightGroup);
 
-    const hlOrigin = evalFenderSurfaceAndNormal(HL_Z_CENTER, HL_U_CENTER, side).point.clone();
+    const hlCenter = evalFenderSurfaceAndNormal(HL_Z_CENTER, HL_U_CENTER, side);
+    const hlOrigin = hlCenter.point.clone();
+    const hlNormal = hlCenter.normal.clone();
     headlightGroup.position.copy(hlOrigin);
 
     const evalHeadlightPointLocal = (rNorm: number, theta: number, liftOffset = 0.0) => {
-      const cosT = Math.cos(theta);
-      const sinT = Math.sin(theta);
-      const z = HL_Z_CENTER + cosT * HL_Z_RADIUS * rNorm;
-      const u = HL_U_CENTER + (sinT * HL_U_RADIUS * rNorm) + (z - HL_Z_CENTER) * 0.18;
+      const { z, u } = headlightParam(rNorm, theta);
       const surf = evalFenderSurfaceAndNormal(z, u, side);
       return surf.point.clone().sub(hlOrigin).addScaledVector(surf.normal, liftOffset);
     };
 
-    const bucketSegs = 32;
+    // Local lamp frame: +Z out of the fender along the surface normal, +Y along the oval's long axis.
+    const hlFront = evalHeadlightPointLocal(1, 0);
+    const hlBack = evalHeadlightPointLocal(1, Math.PI);
+    const hlAxisY = hlFront.clone().sub(hlBack);
+    const hlRadiusY = hlAxisY.length() * 0.5;
+    hlAxisY.addScaledVector(hlNormal, -hlAxisY.dot(hlNormal)).normalize();
+    const hlAxisX = new THREE.Vector3().crossVectors(hlAxisY, hlNormal).normalize();
+    const hlRadiusX = evalHeadlightPointLocal(1, Math.PI / 2).sub(evalHeadlightPointLocal(1, -Math.PI / 2)).length() * 0.5;
 
-    const bucketRings = 6;
-    const bucketPos: number[] = [];
-    for (let ir = 0; ir <= bucketRings; ir++) {
-      const rNorm = (ir / bucketRings) * 0.94;
-      for (let is = 0; is <= bucketSegs; is++) {
-        const pt = evalHeadlightPointLocal(rNorm, (is / bucketSegs) * Math.PI * 2, 0.004);
-        bucketPos.push(pt.x, pt.y, pt.z);
+    const lampFrame = new THREE.Group();
+    lampFrame.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hlAxisX, hlAxisY, hlNormal));
+    headlightGroup.add(lampFrame);
+
+    const hlSegs = 48;
+    const HL_DEPTH = 0.085;
+
+    // Recessed dark-chrome reflector bowl, starting exactly on the edge of the fender opening.
+    const bowlRings = 8;
+    const bowlPos: number[] = [];
+    for (let ir = 0; ir <= bowlRings; ir++) {
+      const s = ir / bowlRings;
+      const rNorm = 1 - 0.42 * s * s;
+      const depth = HL_DEPTH * Math.sin(s * Math.PI * 0.5);
+      for (let is = 0; is <= hlSegs; is++) {
+        const pt = evalHeadlightPointLocal(rNorm, (is / hlSegs) * Math.PI * 2).addScaledVector(hlNormal, -depth);
+        bowlPos.push(pt.x, pt.y, pt.z);
       }
     }
-    headlightGroup.add(new THREE.Mesh(buildRingStripGeometry(bucketPos, bucketRings, bucketSegs), matMachinedAlloy));
+    headlightGroup.add(new THREE.Mesh(buildRingStripGeometry(bowlPos, bowlRings, hlSegs), matHeadlightHousing));
 
-    const bezelRings = 3;
-    const bezelPos: number[] = [];
-    for (let ir = 0; ir <= bezelRings; ir++) {
-      const rNorm = 0.85 + (ir / bezelRings) * 0.17;
-      const archLift = Math.sin((ir / bezelRings) * Math.PI) * 0.010 + 0.004;
-      for (let is = 0; is <= bucketSegs; is++) {
-        const pt = evalHeadlightPointLocal(rNorm, (is / bucketSegs) * Math.PI * 2, archLift);
-        bezelPos.push(pt.x, pt.y, pt.z);
+    const backPlate = new THREE.Mesh(new THREE.CircleGeometry(1, hlSegs), matHeadlightHousing);
+    backPlate.scale.set(hlRadiusX * 0.6, hlRadiusY * 0.6, 1);
+    backPlate.position.z = -HL_DEPTH;
+    lampFrame.add(backPlate);
+
+    // Main LED projector module in the centre of the lamp.
+    const projector = new THREE.Group();
+    projector.position.z = -0.032;
+    const shroudGeo = new THREE.CylinderGeometry(0.050, 0.056, 0.05, 32, 1, true);
+    shroudGeo.rotateX(Math.PI / 2);
+    const shroud = new THREE.Mesh(shroudGeo, matHeadlightHousing);
+    shroud.position.z = -0.022;
+    projector.add(shroud);
+    const projectorTrim = new THREE.Mesh(new THREE.TorusGeometry(0.051, 0.0042, 8, 40), matMachinedAlloy);
+    projector.add(projectorTrim);
+    const projectorLensGeo = new THREE.SphereGeometry(0.047, 32, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+    projectorLensGeo.rotateX(Math.PI / 2);
+    projectorLensGeo.scale(1, 1, 0.42);
+    projector.add(new THREE.Mesh(projectorLensGeo, matProjectorLens));
+    lampFrame.add(projector);
+
+    // Four-point LED daytime running light signature around the projector.
+    for (let k = 0; k < 4; k++) {
+      const thetaMid = Math.PI / 4 + k * (Math.PI / 2);
+      const arcPts: THREE.Vector3[] = [];
+      for (let j = 0; j <= 8; j++) {
+        const th = thetaMid + (j / 8 - 0.5) * 0.42;
+        arcPts.push(new THREE.Vector3(
+          Math.cos(th) * hlRadiusX * 0.68,
+          Math.sin(th) * hlRadiusY * 0.68,
+          -0.018,
+        ));
+      }
+      const led = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arcPts), 12, 0.0075, 8, false),
+        matLedLight,
+      );
+      lampFrame.add(led);
+    }
+
+    // Thin chrome reflector ring between the DRL and the bowl wall.
+    const reflectorRing = new THREE.Mesh(new THREE.TorusGeometry(1, 0.0025 / Math.min(hlRadiusX, hlRadiusY), 6, hlSegs), matMachinedAlloy);
+    reflectorRing.scale.set(hlRadiusX * 0.84, hlRadiusY * 0.84, Math.min(hlRadiusX, hlRadiusY) * 0.84);
+    reflectorRing.position.z = -0.03;
+    lampFrame.add(reflectorRing);
+
+    // Narrow rubber gasket covering the panel gap around the lens.
+    const gasketRings = 2;
+    const gasketPos: number[] = [];
+    for (let ir = 0; ir <= gasketRings; ir++) {
+      const rNorm = 0.985 + (ir / gasketRings) * 0.06;
+      for (let is = 0; is <= hlSegs; is++) {
+        const pt = evalHeadlightPointLocal(rNorm, (is / hlSegs) * Math.PI * 2, 0.0025 + 0.002 * Math.sin((ir / gasketRings) * Math.PI));
+        gasketPos.push(pt.x, pt.y, pt.z);
       }
     }
-    headlightGroup.add(new THREE.Mesh(buildRingStripGeometry(bezelPos, bezelRings, bucketSegs), matPorscheBody));
+    headlightGroup.add(new THREE.Mesh(buildRingStripGeometry(gasketPos, gasketRings, hlSegs), matIntakeDuct));
 
-    [0.85, 0.93, 1.02].forEach((rRing, idx) => {
-      const ringPts: THREE.Vector3[] = [];
-      for (let is = 0; is <= 36; is++) {
-        ringPts.push(evalHeadlightPointLocal(rRing, (is / 36) * Math.PI * 2, 0.009));
-      }
-      headlightGroup.add(createPencilCurveLine(ringPts, true, idx === 1 ? lineMidMat : lineDarkMat));
-    });
+    const rimPts: THREE.Vector3[] = [];
+    for (let is = 0; is <= 48; is++) rimPts.push(evalHeadlightPointLocal(1.045, (is / 48) * Math.PI * 2, 0.004));
+    headlightGroup.add(createPencilCurveLine(rimPts, true, lineMidMat));
 
-    const projectorUnit = new THREE.Group();
-    projectorUnit.position.set(0, 0.015, -0.01);
-
-    const shroudCyl = createSketchMesh(new THREE.CylinderGeometry(0.058, 0.070, 0.075, 24), matPorscheBody);
-    shroudCyl.rotation.x = Math.PI / 2;
-    shroudCyl.rotation.z = -side * 0.12;
-    projectorUnit.add(shroudCyl);
-
-    const shroudRim = createSketchMesh(new THREE.TorusGeometry(0.058, 0.010, 10, 24), matPorscheBody);
-    shroudRim.position.z = 0.036;
-    projectorUnit.add(shroudRim);
-
-    const xenonEye = createSketchMesh(new THREE.SphereGeometry(0.045, 20, 16), matPorscheBody);
-    xenonEye.position.z = 0.028;
-    projectorUnit.add(xenonEye);
-
-    const auxRing = createSketchMesh(new THREE.TorusGeometry(0.034, 0.006, 8, 20), matPorscheBody);
-    auxRing.position.set(side * 0.012, -0.022, 0.068);
-    auxRing.rotation.x = 0.45;
-    projectorUnit.add(auxRing);
-
-    [
-      [-0.042, 0.026, 0.035],
-      [0.042, 0.026, 0.035],
-      [-0.042, -0.022, 0.052],
-      [0.042, -0.022, 0.052],
-    ].forEach(([lx, ly, lz]) => {
-      const ledDot = createSketchMesh(new THREE.CylinderGeometry(0.009, 0.009, 0.018, 10), matPorscheBody);
-      ledDot.rotation.x = Math.PI / 2;
-      ledDot.position.set(lx, ly, lz);
-      projectorUnit.add(ledDot);
-    });
-
-    headlightGroup.add(projectorUnit);
-
-    const lensRings = 7;
+    // Clear cover lens, gently domed above the fender surface.
+    const lensRings = 8;
     const lensPos: number[] = [];
     for (let ir = 0; ir <= lensRings; ir++) {
-      const rNorm = (ir / lensRings) * 0.92;
-      const domeHeight = Math.cos(rNorm * Math.PI * 0.5) * 0.030 + 0.006;
-      for (let is = 0; is <= bucketSegs; is++) {
-        const pt = evalHeadlightPointLocal(rNorm, (is / bucketSegs) * Math.PI * 2, domeHeight);
+      const rNorm = ir / lensRings;
+      const domeHeight = 0.003 + 0.014 * (1 - rNorm * rNorm);
+      for (let is = 0; is <= hlSegs; is++) {
+        const pt = evalHeadlightPointLocal(rNorm, (is / hlSegs) * Math.PI * 2, domeHeight);
         lensPos.push(pt.x, pt.y, pt.z);
       }
     }
-    headlightGroup.add(new THREE.Mesh(buildRingStripGeometry(lensPos, lensRings, bucketSegs), matHeadlightGlass));
+    const lensMesh = new THREE.Mesh(buildRingStripGeometry(lensPos, lensRings, hlSegs), matHeadlightLens);
+    lensMesh.renderOrder = 2;
+    headlightGroup.add(lensMesh);
 
     registerExplodable(
       headlightGroup,
@@ -1196,67 +1472,294 @@ export function createPorscheScene(
   const frontBumperGroup = new THREE.Group();
   carRoot.add(frontBumperGroup);
 
-  [-1, 1].forEach((side) => {
-    const bumperGeo = buildLoftedPorschePatch(2.01, 2.25, 0.0, 1.0, 18, 18, side, (pt, z, v) => {
-      if (z > 2.13 && v > 0.07 && v < 0.38) {
-        pt.z -= 0.048;
-      }
-      return pt;
-    });
-    frontBumperGroup.add(new THREE.Mesh(bumperGeo, matBumperPaint));
-    frontBumperGroup.add(buildPatchBoundaryLine(2.01, 2.25, 0.0, 0.68, 14, side, lineDarkMat));
+  const BUMPER_TIP_Z = 2.25;
 
-    const sideIntakeGroup = new THREE.Group();
-    sideIntakeGroup.position.set(side * 0.49, 0.255, 2.165);
-    sideIntakeGroup.rotation.y = -side * 0.26;
+  // Rear edge of the bumper cover: it meets the fenders at z = 2.06 and follows the rounded front
+  // edge of the hood between them, so neighbouring panels abut instead of overlapping.
+  const bumperStartZ = (v: number) => {
+    if (v < 0.68) return 2.06;
+    return 2.06 - smoothstep(0.55, 1.0, (1 - v) / 0.32) * 0.055;
+  };
 
-    sideIntakeGroup.add(createSketchMesh(new THREE.BoxGeometry(0.39, 0.125, 0.085), matBumperTrim));
+  // b runs across the whole nose (0 and 1 are the lower rear corners, 0.5 the top centreline); the
+  // lower band gets most of the resolution because the fascia and its openings live there.
+  const evalBumperSurface = (a: number, b: number) => {
+    const s = -1 + 2 * b;
+    const f = Math.abs(s);
+    const v = f < 0.4 ? 1 - (f / 0.4) * 0.52 : 0.48 * (1 - (f - 0.4) / 0.6);
+    const zStart = bumperStartZ(v);
+    const z = zStart + (BUMPER_TIP_Z - zStart) * (1 - Math.pow(1 - a, 1.8));
+    return evalPorsche911Point(z, v, s < 0 ? -1 : 1);
+  };
 
-    [-0.024, 0.022].forEach((vy) => {
-      const vane = createSketchMesh(new THREE.BoxGeometry(0.37, 0.010, 0.095), matMachinedAlloy);
-      vane.position.set(0, vy, 0.01);
-      sideIntakeGroup.add(vane);
-    });
+  // Openings in front view (x, y), as rounded rectangles; the side intakes rise slightly outboard.
+  const roundedRectSD = (px: number, py: number, cx: number, cy: number, hx: number, hy: number, r: number) => {
+    const qx = Math.abs(px - cx) - hx + r;
+    const qy = Math.abs(py - cy) - hy + r;
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+  };
+  const SIDE_INTAKE = { cx: 0.47, cy: 0.236, hx: 0.155, hy: 0.068, r: 0.04, shear: 0.08 };
+  const CENTER_INTAKE = { cx: 0, cy: 0.212, hx: 0.235, hy: 0.047, r: 0.03, shear: 0 };
+  type IntakeSpec = typeof SIDE_INTAKE;
+  const intakeSD = (spec: IntakeSpec, x: number, y: number, side: number) => {
+    const lx = side * x;
+    return roundedRectSD(lx, y - (lx - spec.cx) * spec.shear, spec.cx, spec.cy, spec.hx, spec.hy, spec.r);
+  };
+  const bumperHoleSD: HoleSD = (p) => {
+    if (p.z < 2.08 || p.y > 0.4) return 1;
+    return Math.min(
+      intakeSD(CENTER_INTAKE, p.x, p.y, 1),
+      intakeSD(SIDE_INTAKE, p.x, p.y, 1),
+      intakeSD(SIDE_INTAKE, p.x, p.y, -1),
+    );
+  };
 
-    const drlCurvePts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 10; i++) {
-      const u = (i / 10) - 0.5;
-      const xLocal = u * 0.38;
-      const yLocal = 0.072 - Math.pow(u * 1.7, 2) * 0.026;
-      const zLocal = 0.045 - Math.abs(u) * 0.015;
-      drlCurvePts.push(new THREE.Vector3(xLocal, yLocal, zLocal));
-    }
-    const drlTubeGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(drlCurvePts), 16, 0.012, 8, false);
-    sideIntakeGroup.add(createSketchMesh(drlTubeGeo, matPorscheBody, 20));
-
-    frontBumperGroup.add(sideIntakeGroup);
-  });
+  const BUMPER_NU = 100;
+  const BUMPER_NV = 220;
+  frontBumperGroup.add(new THREE.Mesh(
+    buildParamSurfaceGeometry(BUMPER_NU, BUMPER_NV, evalBumperSurface, bumperHoleSD),
+    matBumperPaint,
+  ));
 
   {
-    const centerIntake = createSketchMesh(new THREE.BoxGeometry(0.54, 0.092, 0.08), matBumperTrim);
-    centerIntake.position.set(0, 0.21, 2.20);
-    frontBumperGroup.add(centerIntake);
+    const tipRing: THREE.Vector3[] = [];
+    for (let i = 0; i <= 96; i++) tipRing.push(evalBumperSurface(1, i / 96));
+    const tipCenter = tipRing.reduce((acc, p) => acc.add(p), new THREE.Vector3()).multiplyScalar(1 / tipRing.length);
+    const capPos: number[] = [tipCenter.x, tipCenter.y, tipCenter.z];
+    tipRing.forEach((p) => capPos.push(p.x, p.y, p.z));
+    const capIdx: number[] = [];
+    for (let i = 1; i < tipRing.length; i++) capIdx.push(0, i, i + 1);
+    const capGeo = new THREE.BufferGeometry();
+    capGeo.setAttribute('position', new THREE.Float32BufferAttribute(capPos, 3));
+    capGeo.setIndex(capIdx);
+    capGeo.computeVertexNormals();
+    frontBumperGroup.add(new THREE.Mesh(capGeo, matBumperPaint));
   }
 
-  [-1, 1].forEach((s) => {
-    const intakePillar = createSketchMesh(new THREE.BoxGeometry(0.045, 0.12, 0.07), matPorscheBody);
-    intakePillar.position.set(s * 0.27, 0.23, 2.205);
-    intakePillar.rotation.z = s * 0.22;
-    frontBumperGroup.add(intakePillar);
+  [-1, 1].forEach((side) => {
+    const seamPts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 14; i++) seamPts.push(evalPorsche911Point(2.06, 0.68 * (i / 14), side));
+    frontBumperGroup.add(createPencilCurveLine(seamPts, false, lineDarkMat));
+  });
+
+  // Projects a front-view (x, y) point onto the intact fascia (frontmost hit), using the triangles of
+  // an uncut copy of the bumper bucketed on a coarse front-view grid.
+  const bumperSurfaceAt = (() => {
+    const probeGeo = buildParamSurfaceGeometry(BUMPER_NU, BUMPER_NV, evalBumperSurface);
+    const pos = probeGeo.attributes.position;
+    const index = probeGeo.index!;
+    const CELL = 0.02;
+    const buckets = new Map<string, number[]>();
+    for (let t = 0; t < index.count; t += 3) {
+      const ia = index.getX(t);
+      const ib = index.getX(t + 1);
+      const ic = index.getX(t + 2);
+      if (Math.max(pos.getY(ia), pos.getY(ib), pos.getY(ic)) > 0.5) continue;
+      const x0 = Math.floor(Math.min(pos.getX(ia), pos.getX(ib), pos.getX(ic)) / CELL);
+      const x1 = Math.floor(Math.max(pos.getX(ia), pos.getX(ib), pos.getX(ic)) / CELL);
+      const y0 = Math.floor(Math.min(pos.getY(ia), pos.getY(ib), pos.getY(ic)) / CELL);
+      const y1 = Math.floor(Math.max(pos.getY(ia), pos.getY(ib), pos.getY(ic)) / CELL);
+      for (let gx = x0; gx <= x1; gx++) {
+        for (let gy = y0; gy <= y1; gy++) {
+          const key = `${gx},${gy}`;
+          const list = buckets.get(key);
+          if (list) list.push(t); else buckets.set(key, [t]);
+        }
+      }
+    }
+    const a = new THREE.Vector3();
+    const b = new THREE.Vector3();
+    const c = new THREE.Vector3();
+    const tri = new THREE.Triangle();
+    const bary = new THREE.Vector3();
+    const result = (x: number, y: number) => {
+      let bestZ = -Infinity;
+      const normal = new THREE.Vector3(0, 0, 1);
+      for (const t of buckets.get(`${Math.floor(x / CELL)},${Math.floor(y / CELL)}`) ?? []) {
+        a.fromBufferAttribute(pos, index.getX(t));
+        b.fromBufferAttribute(pos, index.getX(t + 1));
+        c.fromBufferAttribute(pos, index.getX(t + 2));
+        const det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+        if (Math.abs(det) < 1e-12) continue;
+        const l1 = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / det;
+        const l2 = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / det;
+        const l3 = 1 - l1 - l2;
+        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+        const z = l1 * a.z + l2 * b.z + l3 * c.z;
+        if (z > bestZ) {
+          bestZ = z;
+          tri.set(a, b, c).getNormal(normal);
+        }
+      }
+      if (normal.z < 0) normal.negate();
+      // Misses can only fall on the flat tip cap, which is not part of the probe.
+      bary.set(x, y, bestZ === -Infinity ? BUMPER_TIP_Z : bestZ);
+      return { point: bary.clone(), normal };
+    };
+    probeGeo.dispose();
+    return result;
+  })();
+
+  const resamplePolyline = (pts: [number, number][], spacing: number) => {
+    const out: [number, number][] = [];
+    for (let i = 0; i < pts.length; i++) {
+      const [x0, y0] = pts[i];
+      const [x1, y1] = pts[(i + 1) % pts.length];
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / spacing));
+      for (let k = 0; k < n; k++) out.push([x0 + (x1 - x0) * (k / n), y0 + (y1 - y0) * (k / n)]);
+    }
+    return out;
+  };
+
+  const intakeOutline = (spec: IntakeSpec, side: number, inset = 0) => {
+    const hx = spec.hx - inset;
+    const hy = spec.hy - inset;
+    const r = Math.max(0.005, spec.r - inset);
+    const corners: [number, number, number][] = [
+      [spec.cx + hx - r, spec.cy + hy - r, 0],
+      [spec.cx - hx + r, spec.cy + hy - r, Math.PI / 2],
+      [spec.cx - hx + r, spec.cy - hy + r, Math.PI],
+      [spec.cx + hx - r, spec.cy - hy + r, Math.PI * 1.5],
+    ];
+    const pts: [number, number][] = [];
+    corners.forEach(([ccx, ccy, a0]) => {
+      for (let k = 0; k <= 6; k++) {
+        const a = a0 + (k / 6) * (Math.PI / 2);
+        const lx = ccx + Math.cos(a) * r;
+        const ly = ccy + Math.sin(a) * r;
+        pts.push([side * lx, ly + (lx - spec.cx) * spec.shear]);
+      }
+    });
+    return resamplePolyline(pts, 0.008);
+  };
+
+  // A recessed opening: dark duct walls following the cut edge back into the bumper, a back panel,
+  // and grille fins set just behind the surface.
+  const addRecessedIntake = (spec: IntakeSpec, side: number, horizontalFins: number, verticalFins: number) => {
+    const DEPTH = 0.075;
+    const outline = intakeOutline(spec, side);
+    const backOutline = intakeOutline(spec, side, 0.012);
+    const segs = outline.length;
+    const wallPos: number[] = [];
+    const mouth: THREE.Vector3[] = [];
+    const back: THREE.Vector3[] = [];
+    for (let i = 0; i <= segs; i++) {
+      const [x, y] = outline[i % segs];
+      const p = bumperSurfaceAt(x, y).point;
+      p.z += 0.002;
+      mouth.push(p);
+    }
+    for (let i = 0; i <= segs; i++) {
+      const [bx, by] = backOutline[Math.round((i % segs) * (backOutline.length / segs)) % backOutline.length];
+      back.push(new THREE.Vector3(bx, by, mouth[i].z - DEPTH));
+    }
+    mouth.forEach((p) => wallPos.push(p.x, p.y, p.z));
+    back.forEach((p) => wallPos.push(p.x, p.y, p.z));
+    frontBumperGroup.add(new THREE.Mesh(buildRingStripGeometry(wallPos, 1, segs), matIntakeDuct));
+    frontBumperGroup.add(createPencilCurveLine(mouth.slice(0, segs), true, lineMidMat));
+
+    const backShape = new THREE.Shape(back.slice(0, segs).map((p) => new THREE.Vector2(p.x, p.y)));
+    const backGeo = new THREE.ShapeGeometry(backShape);
+    const backAttr = backGeo.attributes.position;
+    for (let i = 0; i < backAttr.count; i++) {
+      const bx = backAttr.getX(i);
+      const by = backAttr.getY(i);
+      let nearest = back[0];
+      let best = Infinity;
+      for (let k = 0; k < segs; k++) {
+        const d = (back[k].x - bx) ** 2 + (back[k].y - by) ** 2;
+        if (d < best) { best = d; nearest = back[k]; }
+      }
+      backAttr.setZ(i, nearest.z);
+    }
+    backGeo.computeVertexNormals();
+    frontBumperGroup.add(new THREE.Mesh(backGeo, matIntakeDuct));
+
+    const inside = (x: number, y: number) => intakeSD(spec, x, y, side) < -0.006;
+    const addFin = (samples: [number, number][], tiltY: number, inset: number, finDepth: number) => {
+      if (samples.length < 2) return;
+      const surfaceZ = samples.map(([x, y]) => bumperSurfaceAt(x, y).point.z);
+      const finPos: number[] = [];
+      samples.forEach(([x, y], i) => finPos.push(x, y, surfaceZ[i] - inset));
+      samples.forEach(([x, y], i) => finPos.push(x, y - tiltY, surfaceZ[i] - inset - finDepth));
+      frontBumperGroup.add(new THREE.Mesh(buildRingStripGeometry(finPos, 1, samples.length - 1), matGrille));
+    };
+
+    const xMin = spec.cx - spec.hx;
+    const xMax = spec.cx + spec.hx;
+    for (let h = 1; h <= horizontalFins; h++) {
+      const frac = h / (horizontalFins + 1);
+      const samples: [number, number][] = [];
+      for (let k = 0; k <= 60; k++) {
+        const lx = xMin + (xMax - xMin) * (k / 60);
+        const y = spec.cy - spec.hy + 2 * spec.hy * frac + (lx - spec.cx) * spec.shear;
+        if (inside(side * lx, y)) samples.push([side * lx, y]);
+      }
+      addFin(samples, 0.008, 0.016, 0.034);
+    }
+    for (let vf = 1; vf <= verticalFins; vf++) {
+      const lx = xMin + (xMax - xMin) * (vf / (verticalFins + 1));
+      const samples: [number, number][] = [];
+      for (let k = 0; k <= 30; k++) {
+        const y = spec.cy - spec.hy * 1.4 + 2.8 * spec.hy * (k / 30) + (lx - spec.cx) * spec.shear;
+        if (inside(side * lx, y)) samples.push([side * lx, y]);
+      }
+      addFin(samples, 0, 0.022, 0.018);
+    }
+  };
+
+  addRecessedIntake(CENTER_INTAKE, 1, 3, 15);
+  [-1, 1].forEach((side) => {
+    addRecessedIntake(SIDE_INTAKE, side, 3, 1);
+
+    // Slim front light strip above each side intake, lying on the fascia.
+    const stripPos: number[] = [];
+    const cols = 24;
+    for (let row = 0; row <= 1; row++) {
+      for (let k = 0; k <= cols; k++) {
+        const lx = 0.345 + (0.595 - 0.345) * (k / cols);
+        const yTop = SIDE_INTAKE.cy + SIDE_INTAKE.hy + (lx - SIDE_INTAKE.cx) * SIDE_INTAKE.shear;
+        const y = yTop + 0.024 + row * 0.013;
+        const hit = bumperSurfaceAt(side * lx, y);
+        const p = hit.point.addScaledVector(hit.normal, 0.0025);
+        stripPos.push(p.x, p.y, p.z);
+      }
+    }
+    frontBumperGroup.add(new THREE.Mesh(buildRingStripGeometry(stripPos, 1, cols), matLedLight));
   });
 
   {
-    const frontChinLip = createSketchMesh(new THREE.BoxGeometry(1.56, 0.024, 0.18), matBumperTrim);
-    frontChinLip.position.set(0, 0.145, 2.14);
-    frontBumperGroup.add(frontChinLip);
+    const plateHit = bumperSurfaceAt(0, 0.327);
+    const plateGroup = new THREE.Group();
+    plateGroup.position.copy(plateHit.point).addScaledVector(plateHit.normal, 0.007);
+    plateGroup.lookAt(plateGroup.position.clone().add(plateHit.normal));
+    plateGroup.add(createSketchMesh(new THREE.BoxGeometry(0.46, 0.095, 0.01), matPorscheBody));
+    const blueEuroBand = createSketchMesh(new THREE.BoxGeometry(0.045, 0.082, 0.012), matDarkCharcoal);
+    blueEuroBand.position.set(-0.195, 0, 0.002);
+    plateGroup.add(blueEuroBand);
+    frontBumperGroup.add(plateGroup);
+  }
 
-    const frontPlateHolder = createSketchMesh(new THREE.BoxGeometry(0.46, 0.095, 0.035), matPorscheBody);
-    frontPlateHolder.position.set(0, 0.285, 2.24);
-    frontBumperGroup.add(frontPlateHolder);
-
-    const blueEuroBand = createSketchMesh(new THREE.BoxGeometry(0.045, 0.082, 0.04), matDarkCharcoal);
-    blueEuroBand.position.set(-0.195, 0.285, 2.242);
-    frontBumperGroup.add(blueEuroBand);
+  // Splitter blade following the bumper's lower edge in plan view, protruding slightly ahead of it.
+  {
+    const lipEdgeX = (z: number) =>
+      evalProfileSpline(z, halfWidthProfile) * (0.86 + 0.09 * smoothstep(2.06, 2.16, z)) + 0.012;
+    const right: [number, number][] = [];
+    for (let z = 1.99; z <= 2.2151; z += 0.0075) right.push([lipEdgeX(z), z]);
+    const xEnd = lipEdgeX(2.215);
+    for (let k = 1; k <= 12; k++) {
+      const t = k / 12;
+      right.push([xEnd * (1 - t), 2.215 + 0.021 * (1 - (1 - t) * (1 - t))]);
+    }
+    const outline = [
+      ...right,
+      ...right.slice(0, -1).reverse().map(([x, z]) => [-x, z] as [number, number]),
+    ];
+    const splitterShape = new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(x, -z)));
+    const splitterGeo = new THREE.ExtrudeGeometry(splitterShape, { depth: 0.016, bevelEnabled: false });
+    splitterGeo.rotateX(-Math.PI / 2);
+    splitterGeo.translate(0, 0.121, 0);
+    frontBumperGroup.add(createSketchMesh(splitterGeo, matIntakeDuct, 35));
   }
 
   registerExplodable(frontBumperGroup, new THREE.Vector3(0, -0.15, 1.65), new THREE.Euler(0.08, 0, 0), 'exterior');
@@ -1304,9 +1807,9 @@ export function createPorscheScene(
 
     doorGroup.add(mirrorAssy);
 
-    const doorGlassGeo = buildLoftedPorschePatch(-0.42, 0.74, 0.48, 0.72, 16, 8, side);
+    const doorGlassGeo = buildLoftedPorschePatch(-0.42, 0.80, 0.48, 0.68, 24, 10, side);
     doorGroup.add(new THREE.Mesh(doorGlassGeo, matPorscheGlass));
-    doorGroup.add(buildPatchBoundaryLine(-0.42, 0.74, 0.48, 0.72, 12, side, lineDarkMat));
+    doorGroup.add(buildPatchBoundaryLine(-0.42, 0.80, 0.48, 0.68, 12, side, lineDarkMat));
 
     registerExplodable(
       doorGroup,
@@ -1348,28 +1851,21 @@ export function createPorscheScene(
   const roofCanopyGroup = new THREE.Group();
   carRoot.add(roofCanopyGroup);
 
+  // Windshield (cowl at z = 0.88, header at z = 0.20), roof and rear glass are each one panel spanning
+  // both sides, framed by painted A-pillars.
+  const WINDSHIELD_V = 0.71;
+  roofCanopyGroup.add(new THREE.Mesh(buildMirroredPatch(0.20, 0.88, WINDSHIELD_V, 30, 48), matPorscheGlass));
+  roofCanopyGroup.add(buildMirroredBoundaryLine(0.20, 0.88, WINDSHIELD_V, 16, lineDarkMat));
+
   [-1, 1].forEach((side) => {
-    const windshieldGeo = buildLoftedPorschePatch(0.40, 0.88, 0.68, 1.0, 20, 14, side);
-    roofCanopyGroup.add(new THREE.Mesh(windshieldGeo, matPorscheGlass));
-    roofCanopyGroup.add(buildPatchBoundaryLine(0.40, 0.88, 0.68, 1.0, 16, side, lineDarkMat));
-
-    const roofGeo = buildLoftedPorschePatch(-0.64, 0.40, 0.70, 1.0, 24, 14, side);
-    roofCanopyGroup.add(new THREE.Mesh(roofGeo, matBrandPaint));
-    roofCanopyGroup.add(buildPatchBoundaryLine(-0.64, 0.40, 0.70, 1.0, 18, side, lineDarkMat));
-
-    const railSeamPts: THREE.Vector3[] = [];
-    for (let i = 0; i <= 14; i++) {
-      const z = -0.62 + 0.98 * (i / 14);
-      const pt = evalPorsche911Point(z, 0.79, side);
-      pt.y += 0.002;
-      railSeamPts.push(pt);
-    }
-    roofCanopyGroup.add(createPencilCurveLine(railSeamPts, false, lineDarkMat));
-
-    const rearGlassGeo = buildLoftedPorschePatch(-1.30, -0.64, 0.68, 1.0, 20, 14, side);
-    roofCanopyGroup.add(new THREE.Mesh(rearGlassGeo, matPorscheGlass));
-    roofCanopyGroup.add(buildPatchBoundaryLine(-1.30, -0.64, 0.68, 1.0, 16, side, lineDarkMat));
+    roofCanopyGroup.add(new THREE.Mesh(buildLoftedPorschePatch(0.20, 0.88, 0.68, WINDSHIELD_V, 30, 2, side), matBrandPaint));
   });
+
+  roofCanopyGroup.add(new THREE.Mesh(buildMirroredPatch(-0.64, 0.20, 0.68, 30, 48), matBrandPaint));
+  roofCanopyGroup.add(buildMirroredBoundaryLine(-0.64, 0.20, 0.68, 18, lineDarkMat));
+
+  roofCanopyGroup.add(new THREE.Mesh(buildMirroredPatch(-1.24, -0.64, 0.68, 24, 48), matPorscheGlass));
+  roofCanopyGroup.add(buildMirroredBoundaryLine(-1.24, -0.64, 0.68, 16, lineDarkMat));
 
   registerExplodable(roofCanopyGroup, new THREE.Vector3(0, 1.85, 0.05), new THREE.Euler(0.06, 0, 0), 'exterior');
 
@@ -1379,11 +1875,8 @@ export function createPorscheScene(
   const rearDecklidGroup = new THREE.Group();
   carRoot.add(rearDecklidGroup);
 
-  [-1, 1].forEach((side) => {
-    const deckGeo = buildLoftedPorschePatch(-1.94, -1.24, 0.68, 1.0, 16, 10, side);
-    rearDecklidGroup.add(new THREE.Mesh(deckGeo, matBrandPaint));
-    rearDecklidGroup.add(buildPatchBoundaryLine(-1.94, -1.24, 0.68, 1.0, 12, side, lineDarkMat));
-  });
+  rearDecklidGroup.add(new THREE.Mesh(buildMirroredPatch(-1.94, -1.24, 0.68, 16, 32), matBrandPaint));
+  rearDecklidGroup.add(buildMirroredBoundaryLine(-1.94, -1.24, 0.68, 12, lineDarkMat));
 
   for (let l = 0; l < 5; l++) {
     const zLouver = -1.36 - l * 0.095;

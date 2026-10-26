@@ -114,7 +114,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             <img
               src={logoSrc}
-              alt="Arian Khodro AKK Logo"
+              alt="Arian Khodro Middle East AKK Logo"
               className="h-7 w-auto object-contain"
               onError={(e) => {
                 const target = e.currentTarget;

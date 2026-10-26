@@ -12,6 +12,7 @@ import { CoreValues } from './components/CoreValues';
 import { FinalCTA } from './components/FinalCTA';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
+import { ScrollToTop } from './components/ScrollToTop';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => {
@@ -184,6 +185,8 @@ export default function App() {
         logoSrc={t.logoSrc}
         navItems={t.nav}
       />
+
+      <ScrollToTop lang={lang} />
 
     </div>
   );

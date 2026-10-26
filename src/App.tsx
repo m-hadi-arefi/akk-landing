@@ -6,14 +6,13 @@ import { Hero } from './components/Hero';
 import { FactoryGallery } from './components/FactoryGallery';
 import { AboutIntro } from './components/AboutIntro';
 import { ValueChain } from './components/ValueChain';
-import { IndustrialCapacities } from './components/IndustrialCapacities';
 import { ProductShowcase } from './components/ProductShowcase';
-import { ActivityDomains } from './components/ActivityDomains';
 import { BrandsSection } from './components/BrandsSection';
 import { CoreValues } from './components/CoreValues';
 import { FinalCTA } from './components/FinalCTA';
 import { ContactSection } from './components/ContactSection';
 import { Footer } from './components/Footer';
+import { ScrollToTop } from './components/ScrollToTop';
 
 export default function App() {
   const [lang, setLang] = useState<Language>(() => {
@@ -108,25 +107,17 @@ export default function App() {
           milestones={t.about.milestones}
         />
 
-        {/* 4. Interactive 9-Step Value Chain */}
+        {/* 4. Integrated Value Chain: 9 Steps, 4 Operating Sites & Activity Domains */}
         <ValueChain
           lang={lang}
           kicker={t.valueChain.kicker}
           title={t.valueChain.title}
           subtitle={t.valueChain.subtitle}
           steps={t.valueChain.steps}
+          sites={t.valueChain.sites}
         />
 
-        {/* 5. Industrial Capacities & 4 Facilities with Real Factory Photos */}
-        <IndustrialCapacities
-          lang={lang}
-          kicker={t.capacities.kicker}
-          title={t.capacities.title}
-          subtitle={t.capacities.subtitle}
-          facilities={t.capacities.facilities}
-        />
-
-        {/* 6. Featured Products Showcase (Official Pars, 206, Saina Bumpers & Grilles) */}
+        {/* 5. Featured Products Showcase (Official Pars, 206, Saina Bumpers & Grilles) */}
         <ProductShowcase
           lang={lang}
           kicker={t.products.kicker}
@@ -135,16 +126,7 @@ export default function App() {
           items={t.products.items}
         />
 
-        {/* 7. Core Activity Domains (8 Visual Cards) */}
-        <ActivityDomains
-          lang={lang}
-          kicker={t.activityDomains.kicker}
-          title={t.activityDomains.title}
-          subtitle={t.activityDomains.subtitle}
-          domains={t.activityDomains.domains}
-        />
-
-        {/* 8. Brand Portfolio (Arian Khodro & MIBA) */}
+        {/* 6. Brand Portfolio (Arian Khodro & MIBA) */}
         <BrandsSection
           lang={lang}
           kicker={t.brands.kicker}
@@ -153,7 +135,7 @@ export default function App() {
           brands={t.brands.brandsList}
         />
 
-        {/* 9. Core Principles & Values */}
+        {/* 7. Core Principles & Values */}
         <CoreValues
           lang={lang}
           kicker={t.values.kicker}
@@ -162,7 +144,7 @@ export default function App() {
           values={t.values.list}
         />
 
-        {/* 10. Final Call to Action */}
+        {/* 8. Final Call to Action */}
         <FinalCTA
           lang={lang}
           title={t.finalCta.title}
@@ -171,7 +153,7 @@ export default function App() {
           contactQuick={t.finalCta.contactQuick}
         />
 
-        {/* 11. Contact & Corporate Form */}
+        {/* 9. Contact & Corporate Form */}
         <ContactSection
           lang={lang}
           kicker={t.contact.kicker}
@@ -203,6 +185,8 @@ export default function App() {
         logoSrc={t.logoSrc}
         navItems={t.nav}
       />
+
+      <ScrollToTop lang={lang} />
 
     </div>
   );

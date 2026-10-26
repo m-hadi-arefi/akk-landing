@@ -34,15 +34,15 @@ export const Footer: React.FC<FooterProps> = ({
           
           {/* Brand Info (5 cols) */}
           <div className="md:col-span-5 space-y-4">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 min-w-0">
               <div className="h-10 p-1 bg-white rounded-lg flex items-center justify-center shrink-0">
                 <img
                   src={logoSrc}
-                  alt="Arian Khodro AKK"
+                  alt="Arian Khodro Middle East AKK"
                   className="h-full w-auto object-contain max-h-8"
                 />
               </div>
-              <span className="text-base font-bold text-white tracking-tight">
+              <span className="text-base font-bold text-white tracking-tight leading-snug min-w-0">
                 {lang === 'fa' ? 'آریان خودرو خاورمیانه' : 'Arian Khodro Middle East'}
               </span>
             </div>
@@ -57,13 +57,13 @@ export const Footer: React.FC<FooterProps> = ({
 
             <div className="pt-2 flex items-center gap-4 text-xs font-mono text-blue-400">
               <a 
-                href="https://arian-int.com" 
+                href="https://akk.ir" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 hover:underline"
               >
                 <Globe className="w-3.5 h-3.5" />
-                <span>arian-int.com</span>
+                <span>akk.ir</span>
                 <ExternalLink className="w-3 h-3 text-slate-500" />
               </a>
             </div>
